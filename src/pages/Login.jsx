@@ -57,15 +57,12 @@ export default function Login() {
       </div>
 
       <div className="dt-card-enter relative w-full max-w-sm rounded-2xl bg-paper p-8 shadow-2xl">
-        <div className="mb-6 flex items-center gap-3">
+        <div className="mb-6 grid items-center gap-3">
           <div className="flex h-8 shrink-0 items-center justify-center rounded-lg bg-white">
-            <img src={logo} alt="Divine Talent" className="h-full w-full object-contain" />
+            <img src={logo} alt="Divine Talent" className="h-20 object-contain" />
           </div>
-          <div className="flex flex-col">
-            <Heading variant="h2">
-              Divine Talent
-            </Heading>
-            <span className="text-xs text-slate">Recruiter Command Center</span>
+          <div className="flex flex-col items-center">
+            <span className="text-sm text-slate text-semibold">Recruiter Command Center</span>
           </div>
         </div>
 
