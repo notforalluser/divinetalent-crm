@@ -19,7 +19,7 @@ export function Card({ className = "", children, ...rest }) {
 
 export function CardHeader({ className = "", children, ...rest }) {
   return (
-    <div className={cx("flex items-center justify-between px-5 py-4 border-b border-line", className)} {...rest}>
+    <div className={cx("flex items-center justify-between px-5 py-4", className)} {...rest}>
       {children}
     </div>
   );

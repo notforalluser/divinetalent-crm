@@ -43,7 +43,7 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
   }
 
   return (
-    <div className="flex flex-col rounded-xl overflow-hidden">
+    <div className="flex flex-col rounded-md overflow-hidden">
       {/* Small, colored, interactive scrollbar for the table body */}
       <style>{`
         .dt-scroll::-webkit-scrollbar { height: 6px; }
@@ -61,7 +61,7 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
           <thead>
             <tr
               className={cx(
-                "bg-gradient-to-r from-crimson-600 to-crimson-500",
+                "bg-gradient-to-r from-crimson-600/90 to-crimson-500/90",
                 settings.density === "compact" ? "text-[10.5px]" : "text-[11.5px]"
               )}
             >
@@ -70,7 +70,7 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
                   key={col.key}
                   onClick={() => col.sortable && toggleSort(col.key)}
                   className={cx(
-                    "px-4 py-3 font-bold uppercase tracking-wider text-white whitespace-nowrap",
+                    "px-4 py-2 font-bold uppercase tracking-wider text-white whitespace-nowrap",
                     col.sortable && "cursor-pointer select-none hover:text-crimson-100"
                   )}
                 >

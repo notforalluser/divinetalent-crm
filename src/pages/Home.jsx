@@ -3,6 +3,7 @@
 // import {
 //   Upload, Sparkles, Briefcase, Building2, Globe2, Zap, ChevronRight, UserPlus,
 //   CalendarClock, Trophy, Activity as ActivityIcon, Bookmark, Users, UsersRound,
+//   ChevronUp, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon, Inbox
 // } from "lucide-react";
 // import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 // import { dateKey, nowIST, addDays, diffInDays, timeAgo, startOfDay, effectiveInterviewStatus } from "../lib/time";
@@ -15,6 +16,165 @@
 // import { useAuth } from "../context/AuthContext";
 // import { useData } from "../context/DataContext";
 // import { useSaved } from "../context/SavedContext";
+// import { useSettings } from "../context/SettingsContext";
+// import InterviewTable from "../components/ui/InterviewTable";
+
+// function cx(...args) {
+//   return args.filter(Boolean).join(" ");
+// }
+
+// // DataTable component integrated directly into Home page
+// // Now density-aware (compact / comfortable), matching components/ui/DataTable.jsx
+// function DataTable({ columns, rows, emptyLabel = "No records found" }) {
+//   const { settings } = useSettings();
+//   const [sort, setSort] = useState({ key: null, dir: "asc" });
+//   const [page, setPage] = useState(1);
+//   const pageSize = settings.pageSize;
+//   const isCompact = settings.density === "compact";
+
+//   const sorted = useMemo(() => {
+//     if (!sort.key) return rows;
+//     const copy = [...rows];
+//     copy.sort((a, b) => {
+//       const av = a[sort.key],
+//         bv = b[sort.key];
+//       if (av == null) return 1;
+//       if (bv == null) return -1;
+//       if (typeof av === "number" && typeof bv === "number") return sort.dir === "asc" ? av - bv : bv - av;
+//       return sort.dir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+//     });
+//     return copy;
+//   }, [rows, sort]);
+
+//   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+//   const currentPage = Math.min(page, totalPages);
+//   const pageRows = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+//   const startIndex = (currentPage - 1) * pageSize;
+
+//   function toggleSort(key) {
+//     setPage(1);
+//     setSort((prev) => (prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+//   }
+
+//   return (
+//     <div className="flex flex-col rounded-xl overflow-hidden">
+//       <style>{`
+//         .dt-scroll::-webkit-scrollbar { height: 6px; }
+//         .dt-scroll::-webkit-scrollbar-track { background: transparent; }
+//         .dt-scroll::-webkit-scrollbar-thumb {
+//           background: linear-gradient(90deg, #c8102e, #af102b);
+//           border-radius: 9999px;
+//         }
+//         .dt-scroll::-webkit-scrollbar-thumb:hover { background: #8c0a1f; }
+//         .dt-scroll { scrollbar-width: thin; scrollbar-color: #d6d6d6 transparent; }
+//       `}</style>
+
+//       <div className="dt-scroll overflow-x-auto">
+//         <table className="w-full text-left border-separate border-spacing-0 font-sans">
+//           <thead>
+//             <tr
+//               className={cx(
+//                 "bg-gradient-to-r from-crimson-600 to-crimson-500",
+//                 isCompact ? "text-[10.5px]" : "text-[11.5px]"
+//               )}
+//             >
+//               {columns.map((col) => (
+//                 <th
+//                   key={col.key}
+//                   onClick={() => col.sortable && toggleSort(col.key)}
+//                   className={cx(
+//                     "px-4 font-bold uppercase tracking-wider text-white whitespace-nowrap",
+//                     isCompact ? "py-2" : "py-3",
+//                     col.sortable && "cursor-pointer select-none hover:text-crimson-100"
+//                   )}
+//                 >
+//                   <span className="inline-flex items-center gap-1">
+//                     {col.label}
+//                     {col.sortable &&
+//                       sort.key === col.key &&
+//                       (sort.dir === "asc" ? (
+//                         <ChevronUp className="h-3 w-3" />
+//                       ) : (
+//                         <ChevronDown className="h-3 w-3" />
+//                       ))}
+//                   </span>
+//                 </th>
+//               ))}
+//             </tr>
+//           </thead>
+//           <tbody>
+//             {pageRows.length === 0 ? (
+//               <tr>
+//                 <td colSpan={columns.length} className="px-4 py-16 text-center bg-white">
+//                   <div className="flex flex-col items-center gap-2 text-slate">
+//                     <Inbox className="h-6 w-6" />
+//                     <span className="text-sm">{emptyLabel}</span>
+//                   </div>
+//                 </td>
+//               </tr>
+//             ) : (
+//               pageRows.map((row, i) => {
+//                 const sno = startIndex + i + 1;
+//                 const odd = i % 2 === 0;
+//                 return (
+//                   <tr
+//                     key={row.id || row.InterviewID || row.HelpID || i}
+//                     className={cx(
+//                       "border-b border-line last:border-0 hover:bg-crimson-50/50 transition-colors",
+//                       odd ? "bg-white" : "bg-cloud/50",
+//                       isCompact ? "text-xs" : "text-[13.5px]"
+//                     )}
+//                   >
+//                     {columns.map((col) => (
+//                       <td
+//                         key={col.key}
+//                         className={cx(
+//                           "px-4 whitespace-nowrap font-medium text-ink/90",
+//                           isCompact ? "py-2" : "py-3.5"
+//                         )}
+//                       >
+//                         {col.render ? col.render(row) : row[col.key]}
+//                       </td>
+//                     ))}
+//                   </tr>
+//                 );
+//               })
+//             )}
+//           </tbody>
+//         </table>
+//       </div>
+
+//       {sorted.length > 0 && (
+//         <div className="flex items-center justify-between border-t border-line px-4 py-2.5 text-xs text-slate bg-white">
+//           <span>
+//             Showing <span className="font-semibold text-ink">{startIndex + 1}</span>-
+//             <span className="font-semibold text-ink">{Math.min(currentPage * pageSize, sorted.length)}</span> of{" "}
+//             <span className="font-semibold text-ink">{sorted.length}</span>
+//           </span>
+//           <div className="flex items-center gap-1">
+//             <button
+//               onClick={() => setPage((p) => Math.max(1, p - 1))}
+//               disabled={currentPage === 1}
+//               className="rounded-md p-1.5 hover:bg-crimson-50 hover:text-crimson-600 disabled:opacity-30 transition-colors"
+//             >
+//               <ChevronLeft className="h-4 w-4" />
+//             </button>
+//             <span className="px-2 font-semibold text-ink">
+//               {currentPage} / {totalPages}
+//             </span>
+//             <button
+//               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+//               disabled={currentPage === totalPages}
+//               className="rounded-md p-1.5 hover:bg-crimson-50 hover:text-crimson-600 disabled:opacity-30 transition-colors"
+//             >
+//               <ChevronRightIcon className="h-4 w-4" />
+//             </button>
+//           </div>
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
 
 // const STATUS_BORDER = {
 //   Completed: "border-l-emerald-400",
@@ -117,8 +277,6 @@
 //     return { newThisWeek, interviewsToday, interviewsWeek, placedThisMonth, today };
 //   }, [candidates, data.Interviews]);
 
-//   // Placements per week, last 8 weeks -- shows hiring momentum over time,
-//   // not just a single-day/month snapshot.
 //   const placementsTrend = useMemo(() => {
 //     const now = nowIST();
 //     const weeks = 8;
@@ -155,31 +313,59 @@
 //     [candidates, jobs, data.Recruiters, isSavedCtx]
 //   );
 
-//   // Sorted strictly by Received Date, most recent first (25th, then 24th,
-//   // then 23rd...) -- this is `data.Interviews`, the exact same
-//   // ReceivedDate-filtered array the Interview Schedule page and every
-//   // candidate's profile read from, so this list can never drift out of
-//   // sync with either of those views.
-//   const RECENT_INTERVIEW_CAP = 8;
 //   const recentInterviews = useMemo(
 //     () =>
 //       [...data.Interviews]
 //         .sort((a, b) => new Date(b.InterviewReceivedDate) - new Date(a.InterviewReceivedDate))
-//         .slice(0, RECENT_INTERVIEW_CAP),
+//         .slice(0, 20),
 //     [data.Interviews]
 //   );
 
 //   const recentTechHelp = useMemo(
-//     () => [...data.TechnicalHelp].sort((a, b) => new Date(b.Date) - new Date(a.Date)).slice(0, 5),
+//     () => [...data.TechnicalHelp].sort((a, b) => new Date(b.Date) - new Date(a.Date)).slice(0, 20),
 //     [data.TechnicalHelp]
 //   );
 
 //   const compactNumber = (n) =>
 //     new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n || 0);
 
+//   // Interview columns for DataTable
+//   const interviewColumns = [
+//     {
+//       key: "CandidateName", label: "Candidate", sortable: true, render: (r) => (
+//         <Link to={`/candidates/${r.CandidateID}`} className="font-semibold text-ink hover:text-crimson-600">
+//           {r.CandidateName}
+//         </Link>
+//       )
+//     },
+//     { key: "InterviewReceivedDate", label: "Received", sortable: true },
+//     { key: "InterviewDate", label: "Interview Date", sortable: true },
+//     { key: "InterviewTime", label: "Time" },
+//     { key: "JobRole", label: "Job Role", sortable: true },
+//     { key: "InterviewRound", label: "Round", sortable: true },
+//     { key: "ModeOfRound", label: "Mode" },
+//     { key: "ClientName", label: "Client", sortable: true },
+//     {
+//       key: "Status", label: "Status", render: (r) => {
+//         const status = effectiveInterviewStatus(r);
+//         return <Badge tone={status}>{status}</Badge>;
+//       }
+//     },
+//   ];
+
+//   // Technical Help columns for DataTable
+//   const techHelpColumns = [
+//     { key: "Date", label: "Date", sortable: true },
+//     { key: "ClientName", label: "Client", sortable: true },
+//     { key: "JobRole", label: "Job Role", sortable: true },
+//     { key: "InterviewRound", label: "Round", sortable: true },
+//     { key: "TechnicalPerson", label: "Technical Person", sortable: true },
+//     { key: "StatusOfHelp", label: "Status", render: (r) => <Badge tone={r.StatusOfHelp}>{r.StatusOfHelp}</Badge> },
+//   ];
+
 //   return (
 //     <PageShell title="Home" onSearch={setQuery}>
-//       <div className="max-w-6xl mx-auto space-y-4 px-4 sm:px-0">
+//       <div className="mx-auto space-y-4 px-4 sm:px-0">
 //         <div className="bg-white p-4 sm:p-5 lg:p-8 relative overflow-hidden">
 //           {/* Top-right gradient spot */}
 //           <div className="pointer-events-none absolute -top-24 -right-24 h-40 w-100 rounded-full bg-gradient-to-br from-crimson-500/30 via-crimson-400/10 to-transparent blur-3xl animate-pulse" />
@@ -378,7 +564,7 @@
 //           </div>
 //         </div>
 
-//         {/* hello   */}
+//         {/* Charts */}
 //         <div className="p-2">
 //           <div className="grid md:grid-cols-2 gap-4 mb-4">
 //             <Card>
@@ -418,146 +604,112 @@
 //               </div>
 //               <CardBody className="h-40 px-2 sm:px-4">
 //                 <ResponsiveContainer width="100%" height="100%">
-//                   <BarChart data={placementsTrend} margin={{ left: -20 }}>
+//                   <AreaChart data={placementsTrend} margin={{ left: -20 }}>
+//                     <defs>
+//                       <linearGradient id="homePlacementsTrend" x1="0" y1="0" x2="0" y2="1">
+//                         <stop offset="5%" stopColor="#098a25" stopOpacity={0.35} />
+//                         <stop offset="95%" stopColor="#098a25" stopOpacity={0} />
+//                       </linearGradient>
+//                     </defs>
 //                     <CartesianGrid strokeDasharray="3 3" stroke="#e7e6ea" />
 //                     <XAxis dataKey="week" tick={{ fontSize: 10 }} />
 //                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
 //                     <Tooltip />
-//                     <Bar dataKey="count" fill="#098a25" radius={[4, 4, 0, 0]} />
-//                   </BarChart>
+//                     <Area
+//                       type="monotone"
+//                       dataKey="count"
+//                       stroke="#098a25"
+//                       fill="url(#homePlacementsTrend)"
+//                       strokeWidth={2.5}
+//                       dot={{ r: 4, fill: "#098a25", strokeWidth: 0 }}
+//                       activeDot={{ r: 5, fill: "#098a25", strokeWidth: 0 }}
+//                     />
+//                   </AreaChart>
 //                 </ResponsiveContainer>
 //               </CardBody>
 //             </Card>
 //           </div>
 
-//           {/* Interview Sheet and Technical Help with WatchList */}
-//           <div className="">
-//             <div className="space-y-5 min-w-0">
-//               <Card>
-//                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-//                   <div>
-//                     <Heading variant="h4" className="mt-0.5 text-base sm:text-lg">
-//                       Interview sheet (recent)
-//                     </Heading>
-//                   </div>
-//                 </CardHeader>
-//                 <CardBody className="!p-0 overflow-x-auto scrollbar-thin">
-//                   <div className="min-w-[900px] lg:min-w-full overflow-x-auto">
-//                     <table className="text-sm min-w-full">
-//                       <thead>
-//                         <tr className="border-b border-line text-left">
-//                           {["Candidate", "Received", "Interview Date", "Time", "Job Role", "Round", "Mode", "Client", "Status"].map((h) => (
-//                             <th key={h} className="px-2 sm:px-3 py-2 font-semibold text-ink-soft text-[10px] sm:text-xs uppercase tracking-wide whitespace-nowrap">
-//                               {h}
-//                             </th>
-//                           ))}
-//                         </tr>
-//                       </thead>
-//                       <tbody>
-//                         {recentInterviews.map((iv) => {
-//                           const status = effectiveInterviewStatus(iv);
-//                           return (
-//                             <tr
-//                               key={iv.InterviewID}
-//                               className={`border-b border-line last:border-0 border-l-4 ${STATUS_BORDER[status] || "border-l-line"} hover:bg-cloud/40`}
-//                             >
-//                               <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap">
-//                                 <Link to={`/candidates/${iv.CandidateID}`} className="font-semibold text-ink hover:text-crimson-600 text-xs sm:text-sm">
-//                                   {iv.CandidateName}
-//                                 </Link>
-//                               </td>
-//                               <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-xs sm:text-sm">{iv.InterviewReceivedDate}</td>
-//                               <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-xs sm:text-sm">{iv.InterviewDate}</td>
-//                               <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-slate text-xs sm:text-sm">{iv.InterviewTime}</td>
-//                               <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-xs sm:text-sm">{iv.JobRole}</td>
-//                               <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-xs sm:text-sm">{iv.InterviewRound}</td>
-//                               <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-xs sm:text-sm">{iv.ModeOfRound}</td>
-//                               <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-xs sm:text-sm">{iv.ClientName}</td>
-//                               <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap">
-//                                 <Badge tone={status} className="text-xs">{status}</Badge>
-//                               </td>
-//                             </tr>
-//                           );
-//                         })}
-//                       </tbody>
-//                     </table>
-//                   </div>
-//                 </CardBody>
-//               </Card>
+//           {/* Interview Sheet with DataTable */}
 
-//               <Card>
-//                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-//                   <Heading variant="h4" className="text-base sm:text-lg">Technical help (recent)</Heading>
-//                   <Badge tone="default" className="text-xs">{data.TechnicalHelp.length.toLocaleString()} total</Badge>
-//                 </CardHeader>
-//                 <CardBody className="!p-0 overflow-x-auto scrollbar-thin">
-//                   <div className="min-w-[700px] lg:min-w-full overflow-x-auto">
-//                     <table className="text-sm min-w-full">
-//                       <thead>
-//                         <tr className="border-b border-line text-left">
-//                           {["Date", "Client", "Job Role", "Round", "Technical Person", "Status"].map((h) => (
-//                             <th key={h} className="px-2 sm:px-3 py-2 font-semibold text-ink-soft text-[10px] sm:text-xs uppercase tracking-wide whitespace-nowrap">
-//                               {h}
-//                             </th>
-//                           ))}
-//                         </tr>
-//                       </thead>
-//                       <tbody>
-//                         {recentTechHelp.map((t) => (
-//                           <tr key={t.HelpID} className="border-b border-line last:border-0 hover:bg-cloud/40">
-//                             <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-xs sm:text-sm">{t.Date}</td>
-//                             <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-xs sm:text-sm">{t.ClientName}</td>
-//                             <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-xs sm:text-sm">{t.JobRole}</td>
-//                             <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-xs sm:text-sm">{t.InterviewRound}</td>
-//                             <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap text-xs sm:text-sm">{t.TechnicalPerson}</td>
-//                             <td className="px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap">
-//                               <Badge tone={t.StatusOfHelp} className="text-xs">{t.StatusOfHelp}</Badge>
-//                             </td>
-//                           </tr>
-//                         ))}
-//                       </tbody>
-//                     </table>
-//                   </div>
-//                 </CardBody>
-//               </Card>
+//           <Card className="mb-4">
+//             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+//               <div>
+//                 <Heading variant="h4" className="mt-0.5 text-base sm:text-lg">
+//                   Interview Sheet
+//                 </Heading>
+//               </div>
+//               <Link to="/interviews">
+//                 <Button variant="ghost" size="sm" iconRight={ChevronRight} className="w-full sm:w-auto justify-center">
+//                   View all
+//                 </Button>
+//               </Link>
+//             </CardHeader>
+//             <CardBody className="!p-0  !px-8">
+//               <InterviewTable
+//                 interviews={recentInterviews}
+//                 emptyLabel="No interviews scheduled"
+//               />
+//             </CardBody>
+//           </Card>
 
-//               {/* Recent Activity */}
-//               <Card>
-//                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 gap-2 sm:gap-0">
-//                   <div>
-//                     <Heading variant="h4" className="mt-1 text-base sm:text-lg">
-//                       Recent activity
-//                     </Heading>
-//                   </div>
-//                   <Link to="/activity" className="w-full sm:w-auto">
-//                     <Button variant="ghost" size="sm" iconRight={ChevronRight} className="w-full sm:w-auto justify-center">
-//                       View all
-//                     </Button>
-//                   </Link>
-//                 </div>
-//                 <CardBody className="!p-0 mt-2">
-//                   <div className="divide-y divide-line">
-//                     {recentActivity.map((a) => {
-//                       const Icon = ACTIVITY_ICONS[a.Action] || ActivityIcon;
-//                       return (
-//                         <div key={a.ActivityID} className="flex items-start gap-3 px-4 sm:px-5 py-2.5 sm:py-3">
-//                           <span className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-cloud flex items-center justify-center shrink-0 text-ink-soft">
-//                             <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-//                           </span>
-//                           <div className="min-w-0 flex-1">
-//                             <p className="text-xs sm:text-sm text-ink truncate">{a.Details}</p>
-//                             <p className="text-[10px] sm:text-xs text-slate mt-0.5">
-//                               {a.User} · {timeAgo(a.Date)}
-//                             </p>
-//                           </div>
-//                         </div>
-//                       );
-//                     })}
-//                   </div>
-//                 </CardBody>
-//               </Card>
+//           {/* Technical Help with DataTable */}
+//           <Card className="mb-4">
+//             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+//               <div>
+//                 <Heading variant="h4" className="mt-0.5 text-base sm:text-lg">
+//                   Technical Help
+//                 </Heading>
+//                 <Text variant="small" color="muted" className="mt-0.5">
+//                   Recent technical support requests ({recentTechHelp.length} total)
+//                 </Text>
+//               </div>
+//               <Badge tone="default" className="text-xs">{data.TechnicalHelp.length.toLocaleString()} total</Badge>
+//             </CardHeader>
+//             <CardBody className="!p-0 !px-8">
+//               <DataTable
+//                 columns={techHelpColumns}
+//                 rows={recentTechHelp}
+//                 emptyLabel="No technical help requests"
+//               />
+//             </CardBody>
+//           </Card>
+
+//           {/* Recent Activity */}
+//           <Card className="mb-4">
+//             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 gap-2 sm:gap-0">
+//               <div>
+//                 <Heading variant="h4" className="mt-1 text-base sm:text-lg">
+//                   Recent Activity
+//                 </Heading>
+//               </div>
+//               <Link to="/activity" className="w-full sm:w-auto">
+//                 <Button variant="ghost" size="sm" iconRight={ChevronRight} className="w-full sm:w-auto justify-center">
+//                   View all
+//                 </Button>
+//               </Link>
 //             </div>
-//           </div>
+//             <CardBody className="!p-0 mt-2">
+//               <div className="divide-y divide-line">
+//                 {recentActivity.map((a) => {
+//                   const Icon = ACTIVITY_ICONS[a.Action] || ActivityIcon;
+//                   return (
+//                     <div key={a.ActivityID} className="flex items-start gap-3 px-4 sm:px-5 py-2.5 sm:py-3">
+//                       <span className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-cloud flex items-center justify-center shrink-0 text-ink-soft">
+//                         <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+//                       </span>
+//                       <div className="min-w-0 flex-1">
+//                         <p className="text-xs sm:text-sm text-ink truncate">{a.Details}</p>
+//                         <p className="text-[10px] sm:text-xs text-slate mt-0.5">
+//                           {a.User} · {timeAgo(a.Date)}
+//                         </p>
+//                       </div>
+//                     </div>
+//                   );
+//                 })}
+//               </div>
+//             </CardBody>
+//           </Card>
 
 //           {/* Today's Recap and WatchList side by side */}
 //           <div className="grid lg:grid-cols-[1fr_320px] gap-5 mb-4">
@@ -617,8 +769,6 @@
 //               <WatchList />
 //             </div>
 //           </div>
-
-          
 //         </div>
 //       </div>
 //     </PageShell>
@@ -644,22 +794,24 @@ import { Card, CardHeader, CardBody } from "../components/ui/Card";
 import { Heading, Text } from "../components/ui/Typography";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
-import WatchList from "../components/ui/WatchList";
 import { useAuth } from "../context/AuthContext";
 import { useData } from "../context/DataContext";
 import { useSaved } from "../context/SavedContext";
 import { useSettings } from "../context/SettingsContext";
+import InterviewTable from "../components/ui/InterviewTable";
 
 function cx(...args) {
   return args.filter(Boolean).join(" ");
 }
 
 // DataTable component integrated directly into Home page
+// Density-aware (compact / comfortable), matching components/ui/DataTable.jsx
 function DataTable({ columns, rows, emptyLabel = "No records found" }) {
   const { settings } = useSettings();
   const [sort, setSort] = useState({ key: null, dir: "asc" });
   const [page, setPage] = useState(1);
   const pageSize = settings.pageSize;
+  const isCompact = settings.density === "compact";
 
   const sorted = useMemo(() => {
     if (!sort.key) return rows;
@@ -701,13 +853,19 @@ function DataTable({ columns, rows, emptyLabel = "No records found" }) {
       <div className="dt-scroll overflow-x-auto">
         <table className="w-full text-left border-separate border-spacing-0 font-sans">
           <thead>
-            <tr className="bg-gradient-to-r from-crimson-600 to-crimson-500 text-[10.5px]">
+            <tr
+              className={cx(
+                "bg-gradient-to-r from-crimson-600 to-crimson-500",
+                isCompact ? "text-[10.5px]" : "text-[11.5px]"
+              )}
+            >
               {columns.map((col) => (
                 <th
                   key={col.key}
                   onClick={() => col.sortable && toggleSort(col.key)}
                   className={cx(
-                    "px-4 py-3 font-bold uppercase tracking-wider text-white whitespace-nowrap",
+                    "px-4 font-bold uppercase tracking-wider text-white whitespace-nowrap",
+                    isCompact ? "py-2" : "py-3",
                     col.sortable && "cursor-pointer select-none hover:text-crimson-100"
                   )}
                 >
@@ -745,7 +903,7 @@ function DataTable({ columns, rows, emptyLabel = "No records found" }) {
                     className={cx(
                       "border-b border-line last:border-0 hover:bg-crimson-50/50 transition-colors",
                       odd ? "bg-white" : "bg-cloud/50",
-                      "text-[13.5px]"
+                      isCompact ? "text-xs" : "text-[13.5px]"
                     )}
                   >
                     {columns.map((col) => (
@@ -753,7 +911,7 @@ function DataTable({ columns, rows, emptyLabel = "No records found" }) {
                         key={col.key}
                         className={cx(
                           "px-4 whitespace-nowrap font-medium text-ink/90",
-                          "py-3.5"
+                          isCompact ? "py-2" : "py-3.5"
                         )}
                       >
                         {col.render ? col.render(row) : row[col.key]}
@@ -826,6 +984,59 @@ function daysAgo(dateStr, refDate) {
   const d = new Date(dateStr);
   if (isNaN(d)) return Infinity;
   return Math.round((refDate - d) / 86400000);
+}
+
+// Modern, interactive SaaS-style background:
+// layered animated gradient blobs + subtle dot grid, sitting behind all content.
+function DashboardBackground() {
+  return (
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#f7f7fb]">
+      <style>{`
+        @keyframes floatBlobA {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(40px, -30px) scale(1.08); }
+          66% { transform: translate(-20px, 20px) scale(0.96); }
+        }
+        @keyframes floatBlobB {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-50px, 30px) scale(1.1); }
+        }
+        @keyframes floatBlobC {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          40% { transform: translate(30px, 40px) scale(0.94); }
+          70% { transform: translate(-30px, -10px) scale(1.05); }
+        }
+        .dash-blob-a { animation: floatBlobA 22s ease-in-out infinite; }
+        .dash-blob-b { animation: floatBlobB 26s ease-in-out infinite; }
+        .dash-blob-c { animation: floatBlobC 30s ease-in-out infinite; }
+        .dash-grid {
+          background-image: radial-gradient(circle, rgba(15,15,20,0.06) 1px, transparent 1px);
+          background-size: 22px 22px;
+          mask-image: radial-gradient(ellipse 80% 60% at 50% 20%, black 40%, transparent 90%);
+        }
+      `}</style>
+
+      {/* base dot grid */}
+      <div className="dash-grid absolute inset-0" />
+
+      {/* gradient blobs */}
+      <div
+        className="dash-blob-a absolute -top-32 -left-24 h-[26rem] w-[26rem] rounded-full blur-3xl opacity-40"
+        style={{ background: "radial-gradient(circle, #c8102e 0%, transparent 70%)" }}
+      />
+      <div
+        className="dash-blob-b absolute top-10 right-[-6rem] h-[24rem] w-[24rem] rounded-full blur-3xl opacity-30"
+        style={{ background: "radial-gradient(circle, #3b82f6 0%, transparent 70%)" }}
+      />
+      <div
+        className="dash-blob-c absolute bottom-[-8rem] left-1/3 h-[28rem] w-[28rem] rounded-full blur-3xl opacity-25"
+        style={{ background: "radial-gradient(circle, #10b981 0%, transparent 70%)" }}
+      />
+
+      {/* soft top fade so content stays readable */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/40 to-white/70" />
+    </div>
+  );
 }
 
 export default function Home() {
@@ -954,11 +1165,13 @@ export default function Home() {
 
   // Interview columns for DataTable
   const interviewColumns = [
-    { key: "CandidateName", label: "Candidate", sortable: true, render: (r) => (
-      <Link to={`/candidates/${r.CandidateID}`} className="font-semibold text-ink hover:text-crimson-600">
-        {r.CandidateName}
-      </Link>
-    )},
+    {
+      key: "CandidateName", label: "Candidate", sortable: true, render: (r) => (
+        <Link to={`/candidates/${r.CandidateID}`} className="font-semibold text-ink hover:text-crimson-600">
+          {r.CandidateName}
+        </Link>
+      )
+    },
     { key: "InterviewReceivedDate", label: "Received", sortable: true },
     { key: "InterviewDate", label: "Interview Date", sortable: true },
     { key: "InterviewTime", label: "Time" },
@@ -966,10 +1179,12 @@ export default function Home() {
     { key: "InterviewRound", label: "Round", sortable: true },
     { key: "ModeOfRound", label: "Mode" },
     { key: "ClientName", label: "Client", sortable: true },
-    { key: "Status", label: "Status", render: (r) => {
-      const status = effectiveInterviewStatus(r);
-      return <Badge tone={status}>{status}</Badge>;
-    }},
+    {
+      key: "Status", label: "Status", render: (r) => {
+        const status = effectiveInterviewStatus(r);
+        return <Badge tone={status}>{status}</Badge>;
+      }
+    },
   ];
 
   // Technical Help columns for DataTable
@@ -984,8 +1199,9 @@ export default function Home() {
 
   return (
     <PageShell title="Home" onSearch={setQuery}>
+      <DashboardBackground />
       <div className="mx-auto space-y-4 px-4 sm:px-0">
-        <div className="bg-white p-4 sm:p-5 lg:p-8 relative overflow-hidden">
+        <div className="bg-white/80 backdrop-blur-sm p-4 sm:p-5 lg:p-8 relative overflow-hidden ring-1 ring-black/5 shadow-sm">
           {/* Top-right gradient spot */}
           <div className="pointer-events-none absolute -top-24 -right-24 h-40 w-100 rounded-full bg-gradient-to-br from-crimson-500/30 via-crimson-400/10 to-transparent blur-3xl animate-pulse" />
 
@@ -1186,7 +1402,7 @@ export default function Home() {
         {/* Charts */}
         <div className="p-2">
           <div className="grid md:grid-cols-2 gap-4 mb-4">
-            <Card>
+            <Card className="bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
               <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5">
                 <div>
                   <Heading variant="h4" className="mt-1 text-base sm:text-lg">
@@ -1213,7 +1429,7 @@ export default function Home() {
               </CardBody>
             </Card>
 
-            <Card>
+            <Card className="bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
               <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5">
                 <div>
                   <Heading variant="h4" className="mt-1 text-base sm:text-lg">
@@ -1223,28 +1439,40 @@ export default function Home() {
               </div>
               <CardBody className="h-40 px-2 sm:px-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={placementsTrend} margin={{ left: -20 }}>
+                  <AreaChart data={placementsTrend} margin={{ left: -20 }}>
+                    <defs>
+                      <linearGradient id="homePlacementsTrend" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#098a25" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#098a25" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e7e6ea" />
                     <XAxis dataKey="week" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#098a25" radius={[4, 4, 0, 0]} />
-                  </BarChart>
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#098a25"
+                      fill="url(#homePlacementsTrend)"
+                      strokeWidth={2.5}
+                      dot={{ r: 4, fill: "#098a25", strokeWidth: 0 }}
+                      activeDot={{ r: 5, fill: "#098a25", strokeWidth: 0 }}
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               </CardBody>
             </Card>
           </div>
 
           {/* Interview Sheet with DataTable */}
-          <Card className="mb-4">
+
+          <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
               <div>
                 <Heading variant="h4" className="mt-0.5 text-base sm:text-lg">
                   Interview Sheet
                 </Heading>
-                <Text variant="small" color="muted" className="mt-0.5">
-                  Recent interviews ({recentInterviews.length} total)
-                </Text>
               </div>
               <Link to="/interviews">
                 <Button variant="ghost" size="sm" iconRight={ChevronRight} className="w-full sm:w-auto justify-center">
@@ -1252,17 +1480,16 @@ export default function Home() {
                 </Button>
               </Link>
             </CardHeader>
-            <CardBody className="!p-0">
-              <DataTable 
-                columns={interviewColumns} 
-                rows={recentInterviews} 
+            <CardBody className="!p-0  !px-8">
+              <InterviewTable
+                interviews={recentInterviews}
                 emptyLabel="No interviews scheduled"
               />
             </CardBody>
           </Card>
 
           {/* Technical Help with DataTable */}
-          <Card className="mb-4">
+          <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
               <div>
                 <Heading variant="h4" className="mt-0.5 text-base sm:text-lg">
@@ -1274,17 +1501,17 @@ export default function Home() {
               </div>
               <Badge tone="default" className="text-xs">{data.TechnicalHelp.length.toLocaleString()} total</Badge>
             </CardHeader>
-            <CardBody className="!p-0">
-              <DataTable 
-                columns={techHelpColumns} 
-                rows={recentTechHelp} 
+            <CardBody className="!p-0 !px-8">
+              <DataTable
+                columns={techHelpColumns}
+                rows={recentTechHelp}
                 emptyLabel="No technical help requests"
               />
             </CardBody>
           </Card>
 
           {/* Recent Activity */}
-          <Card className="mb-4">
+          <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 gap-2 sm:gap-0">
               <div>
                 <Heading variant="h4" className="mt-1 text-base sm:text-lg">
@@ -1319,9 +1546,9 @@ export default function Home() {
             </CardBody>
           </Card>
 
-          {/* Today's Recap and WatchList side by side */}
-          <div className="grid lg:grid-cols-[1fr_320px] gap-5 mb-4">
-            <Card className="min-w-0">
+          {/* Today's Recap — full width now that WatchList is removed */}
+          <div className="mb-4">
+            <Card className="min-w-0 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 gap-3 sm:gap-0">
                 <div>
                   <Text variant="eyebrow" color="accent" className="text-xs">
@@ -1372,10 +1599,6 @@ export default function Home() {
                 )}
               </CardBody>
             </Card>
-
-            <div className="lg:block">
-              <WatchList />
-            </div>
           </div>
         </div>
       </div>

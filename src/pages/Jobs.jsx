@@ -124,17 +124,18 @@ export default function Jobs() {
     },
     { key: "Company", label: "Company", sortable: true },
     { key: "City", label: "Location", render: (r) => `${r.City}, ${r.State}` },
-    { key: "RemoteType", label: "Work type" },
-    { key: "JobType", label: "Type" },
-    { key: "VisaSponsorship", label: "Visa", render: (r) => <Badge tone="default">{r.VisaSponsorship}</Badge> },
-    { key: "SalaryRange", label: "Salary" },
-    { key: "Applicants", label: "Applicants", sortable: true },
     {
       key: "PostedDate",
       label: "Posted",
       sortable: true,
       render: (r) => <span className="text-slate">{timeAgo(r.PostedDate)}</span>,
     },
+    { key: "RemoteType", label: "Work type" },
+    { key: "JobType", label: "Type" },
+    { key: "VisaSponsorship", label: "Visa", render: (r) => <Badge tone="default">{r.VisaSponsorship}</Badge> },
+    { key: "SalaryRange", label: "Salary" },
+    { key: "Applicants", label: "Applicants", sortable: true },
+
     { key: "Status", label: "Status", render: (r) => <Badge tone={r.Status}>{r.Status}</Badge> },
     {
       key: "_save",
@@ -177,115 +178,117 @@ export default function Jobs() {
           </div>
         </div>
 
-        {/* Stats + charts: Postings -> Visa -> Work/Job toggle (in that order) */}
-        <div className="grid grid-cols-12 gap-3">
-          <ChartCard title="Postings, last 30 days" span="col-span-12 lg:col-span-5" height={260}>
-            <AreaChart data={trend} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
-              <defs>
-                <linearGradient id="jobsTrend" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={RED} stopOpacity={0.35} />
-                  <stop offset="95%" stopColor={RED} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e7e6ea" />
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={2} angle={-35} textAnchor="end" height={45} />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={30} />
-              <Tooltip />
-              <Area type="monotone" dataKey="count" stroke={RED} fill="url(#jobsTrend)" strokeWidth={2} />
-            </AreaChart>
-          </ChartCard>
+        <div className="mx-5">
+          {/* Stats + charts: Postings -> Visa -> Work/Job toggle (in that order) */}
+          <div className="grid grid-cols-12 gap-3">
+            <ChartCard title="Postings, last 30 days" span="col-span-12 lg:col-span-5" height={260}>
+              <AreaChart data={trend} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="jobsTrend" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={RED} stopOpacity={0.35} />
+                    <stop offset="95%" stopColor={RED} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e7e6ea" />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={2} angle={-35} textAnchor="end" height={45} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={30} />
+                <Tooltip />
+                <Area type="monotone" dataKey="count" stroke={RED} fill="url(#jobsTrend)" strokeWidth={2} />
+              </AreaChart>
+            </ChartCard>
 
-          <ChartCard title="Visa sponsorship" span="col-span-12 lg:col-span-3" height={260}>
-            <BarChart data={byVisa} layout="vertical" margin={{ left: 4, right: 24, top: 8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e7e6ea" horizontal={false} />
-              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
-              <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Bar dataKey="value" fill={BLUE} radius={[0, 4, 4, 0]}>
-                {/* <LabelList dataKey="value" position="right" style={{ fontSize: 10, fill: "#121214" }} /> */}
-              </Bar>
-            </BarChart>
-          </ChartCard>
+            <ChartCard title="Visa sponsorship" span="col-span-12 lg:col-span-3" height={260}>
+              <BarChart data={byVisa} layout="vertical" margin={{ left: 4, right: 24, top: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e7e6ea" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
+                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Bar dataKey="value" fill={BLUE} radius={[0, 4, 4, 0]}>
+                  {/* <LabelList dataKey="value" position="right" style={{ fontSize: 10, fill: "#121214" }} /> */}
+                </Bar>
+              </BarChart>
+            </ChartCard>
 
-          {/* Work type / Job type toggle card — last */}
-          <ChartCard
-            title={typeView === "work" ? "Work type" : "Job type"}
-            span="col-span-12 lg:col-span-4"
-            height={260}
-            headerExtra={
-              <div className="flex items-center gap-1 rounded-full bg-cloud p-0.5 ring-1 ring-line">
-                <button
-                  onClick={() => setTypeView("work")}
-                  className={cx(
-                    "px-2.5 py-1 rounded-full text-[10px] font-semibold transition-colors",
-                    typeView === "work" ? "bg-crimson-600 text-white shadow-sm" : "text-slate hover:text-ink"
-                  )}
+            {/* Work type / Job type toggle card — last */}
+            <ChartCard
+              title={typeView === "work" ? "Work type" : "Job type"}
+              span="col-span-12 lg:col-span-4"
+              height={260}
+              headerExtra={
+                <div className="flex items-center gap-1 rounded-full bg-cloud p-0.5 ring-1 ring-line">
+                  <button
+                    onClick={() => setTypeView("work")}
+                    className={cx(
+                      "px-2.5 py-1 rounded-full text-[10px] font-semibold transition-colors",
+                      typeView === "work" ? "bg-crimson-600 text-white shadow-sm" : "text-slate hover:text-ink"
+                    )}
+                  >
+                    Work type
+                  </button>
+                  <button
+                    onClick={() => setTypeView("job")}
+                    className={cx(
+                      "px-2.5 py-1 rounded-full text-[10px] font-semibold transition-colors",
+                      typeView === "job" ? "bg-crimson-600 text-white shadow-sm" : "text-slate hover:text-ink"
+                    )}
+                  >
+                    Job type
+                  </button>
+                </div>
+              }
+            >
+              <PieChart>
+                <Pie
+                  data={typeData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={40}
+                  outerRadius={68}
+                  paddingAngle={2}
+                  // label={({ name, value }) => `${name}: ${value}`}
+                  labelLine={false}
                 >
-                  Work type
-                </button>
-                <button
-                  onClick={() => setTypeView("job")}
-                  className={cx(
-                    "px-2.5 py-1 rounded-full text-[10px] font-semibold transition-colors",
-                    typeView === "job" ? "bg-crimson-600 text-white shadow-sm" : "text-slate hover:text-ink"
-                  )}
-                >
-                  Job type
-                </button>
-              </div>
-            }
-          >
-            <PieChart>
-              <Pie
-                data={typeData}
-                dataKey="value"
-                nameKey="name"
-                innerRadius={40}
-                outerRadius={68}
-                paddingAngle={2}
-                // label={({ name, value }) => `${name}: ${value}`}
-                labelLine={false}
-              >
-                {typeData.map((_, i) => (
-                  <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-            </PieChart>
-          </ChartCard>
-        </div>
-
-        {/* Table with a compact, interactive filter row above it — all four in one line */}
-        <Card className="m-5">
-          <div className="flex items-center flex-nowrap gap-2 px-3 py-2.5 border-b border-line bg-gradient-to-r from-cloud/70 to-cloud/30 rounded-t-xl overflow-x-auto scrollbar-thin">
-            <span className="flex items-center gap-1 text-[10px] font-semibold text-slate shrink-0 pr-1">
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Filters
-            </span>
-            {filterFields.map((f) => (
-              <Select
-                key={f.prefix}
-                value={f.value}
-                title={`${f.prefix}: ${f.value}`}
-                onChange={(e) => f.set(e.target.value)}
-                className={cx(
-                  "!py-1 !pl-2 !pr-5 !text-[10px] !rounded-full !border-line truncate",
-                  "shrink-0 shadow-sm hover:shadow transition-shadow hover:border-crimson-300",
-                  "hover:ring-2 hover:ring-crimson-500/20 focus:ring-2 focus:ring-crimson-500/30"
-                )}
-                style={{ width: 96 }}
-              >
-                {f.options.map((s) => (
-                  <option key={s} value={s}>
-                    {f.prefix}: {s}
-                  </option>
-                ))}
-              </Select>
-            ))}
+                  {typeData.map((_, i) => (
+                    <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ChartCard>
           </div>
-          <DataTable columns={columns} rows={filtered} searchTerm={query} emptyLabel="No jobs match your filters" />
-        </Card>
+
+          {/* Table with a compact, interactive filter row above it — all four in one line */}
+          <Card className="m-5">
+            <div className="flex items-center flex-nowrap gap-2 px-3 py-2.5 border-b border-line bg-gradient-to-r from-cloud/70 to-cloud/30 rounded-t-xl overflow-x-auto scrollbar-thin">
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-slate shrink-0 pr-1">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filters
+              </span>
+              {filterFields.map((f) => (
+                <Select
+                  key={f.prefix}
+                  value={f.value}
+                  title={`${f.prefix}: ${f.value}`}
+                  onChange={(e) => f.set(e.target.value)}
+                  className={cx(
+                    "!py-1 !pl-2 !pr-5 !text-[10px] !rounded-full !border-line truncate",
+                    "shrink-0 shadow-sm hover:shadow transition-shadow hover:border-crimson-300",
+                    "hover:ring-2 hover:ring-crimson-500/20 focus:ring-2 focus:ring-crimson-500/30"
+                  )}
+                  style={{ width: 96 }}
+                >
+                  {f.options.map((s) => (
+                    <option key={s} value={s}>
+                      {f.prefix}: {s}
+                    </option>
+                  ))}
+                </Select>
+              ))}
+            </div>
+            <DataTable columns={columns} rows={filtered} searchTerm={query} emptyLabel="No jobs match your filters" />
+          </Card>
+        </div>
       </div>
     </PageShell>
   );
