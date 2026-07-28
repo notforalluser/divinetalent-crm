@@ -8,19 +8,143 @@ import {
   Users,
   Briefcase,
   UserCheck,
-  Mail,
-  Phone,
   Filter,
-  ChevronRight
+  ChevronRight,
+  TrendingUp,
 } from "lucide-react";
 import PageShell from "../components/layout/PageShell";
-import { Card, CardHeader, CardBody } from "../components/ui/Card";
+import { Card, CardBody } from "../components/ui/Card";
 import { Heading, Text } from "../components/ui/Typography";
 import { Select } from "../components/ui/Input";
 import DataTable from "../components/ui/DataTable";
 import Badge from "../components/ui/Badge";
-import StatCard from "../components/ui/StatCard";
 import { useData } from "../context/DataContext";
+
+const RED = "#c8102e";
+const BLUE = "#3b82f6";
+const GREEN = "#10b981";
+const AMBER = "#f59e0b";
+
+function cx(...args) {
+  return args.filter(Boolean).join(" ");
+}
+
+function StatCard({ icon: Icon, label, value, sub, accent, delay = 0 }) {
+  return (
+    <div
+      className="jobs-fade-up group relative overflow-hidden rounded-2xl border border-blue-100 bg-white/85 backdrop-blur-sm p-5"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div
+        className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-[0.10] transition-transform duration-500 group-hover:scale-125"
+        style={{ background: accent }}
+      />
+      <div className="relative flex items-center gap-3">
+        <div
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm"
+          style={{ background: `${accent}1a` }}
+        >
+          <Icon className="h-4.5 w-4.5" style={{ color: accent }} />
+        </div>
+        <div className="min-w-0">
+          <Text variant="small" className="truncate font-medium text-slate">
+            {label}
+          </Text>
+        </div>
+      </div>
+      <div className="relative mt-3 flex items-baseline gap-2">
+        <span className="stat-figure text-[26px] font-extrabold leading-none tracking-tight text-ink">
+          {value}
+        </span>
+        {sub && (
+          <span className="text-[11px] font-semibold" style={{ color: accent }}>
+            {sub}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DashboardBackground() {
+  return (
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#F7FAFF]">
+      <style>{`
+        @keyframes floatBlobA {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(40px, -30px) scale(1.08); }
+          66% { transform: translate(-20px, 20px) scale(0.96); }
+        }
+        @keyframes floatBlobB {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-50px, 30px) scale(1.1); }
+        }
+        @keyframes floatBlobC {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          40% { transform: translate(30px, 40px) scale(0.94); }
+          70% { transform: translate(-30px, -10px) scale(1.05); }
+        }
+        .dash-blob-a { animation: floatBlobA 22s ease-in-out infinite; }
+        .dash-blob-b { animation: floatBlobB 26s ease-in-out infinite; }
+        .dash-blob-c { animation: floatBlobC 30s ease-in-out infinite; }
+        .dash-grid {
+          background-image: radial-gradient(circle, rgba(59,130,246,0.07) 1px, transparent 1px);
+          background-size: 22px 22px;
+          mask-image: radial-gradient(ellipse 80% 60% at 50% 20%, black 40%, transparent 90%);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .dash-blob-a, .dash-blob-b, .dash-blob-c { animation: none !important; }
+        }
+      `}</style>
+
+      <div className="dash-grid absolute inset-0" />
+
+      <div
+        className="dash-blob-a absolute -top-32 -left-24 h-[26rem] w-[26rem] rounded-full blur-3xl opacity-40"
+        style={{ background: "radial-gradient(circle, #93c5fd 0%, transparent 70%)" }}
+      />
+      <div
+        className="dash-blob-b absolute top-10 right-[-6rem] h-[24rem] w-[24rem] rounded-full blur-3xl opacity-30"
+        style={{ background: "radial-gradient(circle, #f9a8d4 0%, transparent 70%)" }}
+      />
+      <div
+        className="dash-blob-c absolute bottom-[-8rem] left-1/3 h-[28rem] w-[28rem] rounded-full blur-3xl opacity-25"
+        style={{ background: "radial-gradient(circle, #fde68a 0%, transparent 70%)" }}
+      />
+
+      <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/40 to-white/70" />
+    </div>
+  );
+}
+
+function PageTypography() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+      .app-shell {
+        --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+        --font-body: 'Inter', 'Plus Jakarta Sans', sans-serif;
+        --font-mono: 'IBM Plex Mono', 'Menlo', monospace;
+        font-family: var(--font-body);
+      }
+      .app-shell h1,
+      .app-shell h2,
+      .app-shell h3,
+      .app-shell h4,
+      .app-shell h5,
+      .app-shell h6 {
+        font-family: var(--font-display);
+        letter-spacing: -0.012em;
+      }
+      .app-shell .stat-figure {
+        font-family: var(--font-mono);
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+    `}</style>
+  );
+}
 
 export default function Activity() {
   const { visible: data } = useData();
@@ -30,7 +154,6 @@ export default function Activity() {
 
   const allActivities = data.Activity || [];
 
-  // Get unique actions and entities for filters
   const actions = ["All", ...new Set(allActivities.map((a) => a.Action).filter(Boolean))];
   const entities = ["All", ...new Set(allActivities.map((a) => a.Entity).filter(Boolean))];
 
@@ -41,10 +164,8 @@ export default function Activity() {
       .sort((a, b) => new Date(b.Date) - new Date(a.Date));
   }, [allActivities, actionFilter, entityFilter]);
 
-  // Stats
   const totalEvents = allActivities.length;
   const uniqueUsers = new Set(allActivities.map((a) => a.User)).size;
-  const uniqueActions = new Set(allActivities.map((a) => a.Action)).size;
   const todayEvents = allActivities.filter((a) => {
     const today = new Date();
     const eventDate = new Date(a.Date);
@@ -92,14 +213,14 @@ export default function Activity() {
       label: "Action",
       render: (r) => {
         const actionColors = {
-          "Created": "emerald",
-          "Updated": "blue",
-          "Deleted": "crimson",
-          "Viewed": "gray",
-          "Applied": "purple",
-          "Interview": "orange",
-          "Hired": "green",
-          "Rejected": "red",
+          Created: "emerald",
+          Updated: "blue",
+          Deleted: "crimson",
+          Viewed: "gray",
+          Applied: "purple",
+          Interview: "orange",
+          Hired: "green",
+          Rejected: "red",
         };
         const color = actionColors[r.Action] || "default";
         return <Badge tone={color}>{r.Action}</Badge>;
@@ -110,10 +231,10 @@ export default function Activity() {
       label: "Entity",
       render: (r) => {
         const entityIcons = {
-          "Candidate": Users,
-          "Job": Briefcase,
-          "Recruiter": UserCheck,
-          "Interview": Calendar,
+          Candidate: Users,
+          Job: Briefcase,
+          Recruiter: UserCheck,
+          Interview: Calendar,
         };
         const Icon = entityIcons[r.Entity] || FileText;
         return (
@@ -128,102 +249,87 @@ export default function Activity() {
     {
       key: "_view",
       label: "",
-      render: (r) => (
-        <button className="text-slate hover:text-crimson-600 transition-colors">
+      render: () => (
+        <button className="text-slate transition-colors hover:text-blue-600">
           <ChevronRight className="h-4 w-4" />
         </button>
       ),
     },
   ];
 
-  // Filter fields for the filter bar
   const filterFields = [
     { value: actionFilter, set: setActionFilter, options: actions, prefix: "Action" },
     { value: entityFilter, set: setEntityFilter, options: entities, prefix: "Entity" },
   ];
 
-  function cx(...args) {
-    return args.filter(Boolean).join(" ");
-  }
-
   return (
     <PageShell title="Activity" searchPlaceholder="Search activity log..." onSearch={setQuery}>
-      <div className="max-w-7xl mx-auto space-y-5 bg-white">
-        {/* Heading */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-white via-white to-white px-6 py-6">
-          <div className="pointer-events-none absolute bottom-0 left-1 h-24 w-20 rounded-full bg-crimson-600/30 blur-xl" />
-          <div className="pointer-events-none absolute -top-10 -right-10 h-40 w-20 rounded-full bg-crimson-600/60 blur-2xl" />
-          <div className="relative flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <h2 className="mt-1 flex items-center gap-2.5 text-2xl font-extrabold text-ink">
-                <span className="flex items-center justify-center h-10 w-10 rounded-xl bg-crimson-600 shadow-sm ring-1 ring-crimson-700/30">
-                  <ActivityIcon className="h-5 w-5 text-white" />
-                </span>
-                Activity Log
-              </h2>
-              <Text variant="body" color="muted" className="mt-1">
-                Complete audit trail of all user actions across the platform
-              </Text>
+      <PageTypography />
+      <DashboardBackground />
+
+      <style>{`
+        @keyframes jobsFadeUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .jobs-fade-up {
+          animation: jobsFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .jobs-fade-up { animation: none !important; }
+        }
+      `}</style>
+
+      <div className="app-shell space-y-8">
+        {/* Header */}
+        <div className="relative overflow-hidden bg-white/80 backdrop-blur-sm px-6 py-4 ring-1 ring-blue-500/10 shadow-sm">
+          <div className="pointer-events-none absolute -top-16 -right-10 h-56 w-56 rounded-full bg-blue-400/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-48 w-48 rounded-full bg-pink-300/10 blur-3xl" />
+
+          <div className="relative flex flex-wrap items-center justify-between gap-5">
+            <div className="flex items-center gap-3.5">
+              <span className="group flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-crimson-500 via-crimson-600 to-crimson-500 ring-1 ring-blue-400/20 transition-transform duration-300 hover:scale-105 hover:rotate-3">
+                <ActivityIcon className="h-4 w-4 text-white transition-transform duration-300 group-hover:scale-110" />
+              </span>
+              <div>
+                <h2 className="text-3xl font-extrabold leading-tight tracking-tight text-ink">
+                  Activity Log
+                </h2>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 text-crimson-700 text-xs font-semibold bg-white/70 rounded-full px-3 py-1.5 ring-1 ring-crimson-200">
-              <Clock className="h-3.5 w-3.5" />
-              {totalEvents} events recorded
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex cursor-default items-center gap-1.5 rounded-full border border-crimson-200 bg-crimson-50/70 px-3.5 py-2 text-xs font-semibold text-crimson-700">
+                <ActivityIcon className="h-3.5 w-3.5" />
+                <span className="stat-figure">{totalEvents}</span> events
+              </div>
+              <div className="flex cursor-default items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50/70 px-3.5 py-2 text-xs font-semibold text-blue-700">
+                <Users className="h-3.5 w-3.5" />
+                <span className="stat-figure">{uniqueUsers}</span> users
+              </div>
+              <div className="flex cursor-default items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/60 px-3.5 py-2 text-xs font-semibold text-emerald-700">
+                <TrendingUp className="h-3.5 w-3.5" />
+                <span className="stat-figure">{todayEvents}</span> today
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="m-5 lg:m-8">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl border border-line p-4 shadow-sm border-l-4 border-l-crimson-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Text variant="small" className="font-semibold text-slate">Total Events</Text>
-                  <Text variant="stat" className="mt-1">{totalEvents.toLocaleString()}</Text>
-                </div>
-                <div className="p-2 rounded-lg bg-crimson-50">
-                  <ActivityIcon className="h-5 w-5 text-crimson-600" />
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl border border-line p-4 shadow-sm border-l-4 border-l-blue-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Text variant="small" className="font-semibold text-slate">Unique Users</Text>
-                  <Text variant="stat" className="mt-1">{uniqueUsers}</Text>
-                </div>
-                <div className="p-2 rounded-lg bg-blue-50">
-                  <Users className="h-5 w-5 text-blue-600" />
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl border border-line p-4 shadow-sm border-l-4 border-l-emerald-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Text variant="small" className="font-semibold text-slate">Action Types</Text>
-                  <Text variant="stat" className="mt-1">{uniqueActions}</Text>
-                </div>
-                <div className="p-2 rounded-lg bg-emerald-50">
-                  <FileText className="h-5 w-5 text-emerald-600" />
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl border border-line p-4 shadow-sm border-l-4 border-l-orange-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Text variant="small" className="font-semibold text-slate">Today's Events</Text>
-                  <Text variant="stat" className="mt-1">{todayEvents}</Text>
-                </div>
-                <div className="p-2 rounded-lg bg-orange-50">
-                  <Calendar className="h-5 w-5 text-orange-600" />
-                </div>
-              </div>
-            </div>
+        <div className="px-4 md:px-6 space-y-8">
+          {/* Quick stats */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatCard icon={ActivityIcon} label="Total events" value={totalEvents} accent={RED} delay={60} />
+            <StatCard icon={Users} label="Unique users" value={uniqueUsers} accent={BLUE} delay={100} />
+            <StatCard icon={TrendingUp} label="Today" value={todayEvents} accent={GREEN} delay={140} />
+            <StatCard icon={FileText} label="Actions tracked" value={actions.length - 1} accent={AMBER} delay={180} />
           </div>
 
-          {/* Table with Filters */}
-          <Card>
-            <div className="flex items-center flex-nowrap gap-2 px-3 py-2.5 border-b border-line bg-gradient-to-r from-cloud/70 to-cloud/30 rounded-t-xl overflow-x-auto scrollbar-thin">
+          {/* Table with filters */}
+          <Card
+            className="jobs-fade-up !rounded-2xl bg-white/85 backdrop-blur-sm ring-1 ring-blue-500/10 shadow-[0_1px_2px_rgba(20,20,40,0.04)]"
+            style={{ animationDelay: "220ms" }}
+          >
+            <div className="flex items-center flex-nowrap gap-2.5 px-4 py-3 border-b border-blue-100 bg-gradient-to-r from-blue-50/70 via-pink-50/40 to-transparent rounded-t-2xl overflow-x-auto scrollbar-thin">
               <span className="flex items-center gap-1 text-[10px] font-semibold text-slate shrink-0 pr-1">
                 <Filter className="h-3.5 w-3.5" />
                 Filters
@@ -235,9 +341,9 @@ export default function Activity() {
                   title={`${f.prefix}: ${f.value}`}
                   onChange={(e) => f.set(e.target.value)}
                   className={cx(
-                    "!py-1 !pl-2 !pr-5 !text-[10px] !rounded-full !border-line truncate",
-                    "shrink-0 shadow-sm hover:shadow transition-shadow hover:border-crimson-300",
-                    "hover:ring-2 hover:ring-crimson-500/20 focus:ring-2 focus:ring-crimson-500/30"
+                    "!py-1 !pl-2 !pr-5 !text-[10px] !rounded-full !border-blue-200 truncate",
+                    "shrink-0 shadow-sm hover:shadow transition-shadow hover:border-blue-300",
+                    "hover:ring-2 hover:ring-blue-400/20 focus:ring-2 focus:ring-blue-400/30"
                   )}
                   style={{ width: 96 }}
                 >
@@ -249,7 +355,7 @@ export default function Activity() {
                 </Select>
               ))}
               <div className="flex-1" />
-              <Badge tone="default" className="shrink-0">
+              <Badge tone="default" className="shrink-0 border border-blue-100">
                 {filteredRows.length} events
               </Badge>
             </div>
@@ -261,15 +367,18 @@ export default function Activity() {
             />
           </Card>
 
-          {/* Empty State Tip */}
+          {/* Empty state */}
           {totalEvents === 0 && (
-            <Card className="bg-gradient-to-r from-cloud/50 to-cloud/30 border-dashed border-2 border-line">
-              <CardBody className="text-center py-8">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="p-4 rounded-full bg-crimson-50">
-                    <ActivityIcon className="h-8 w-8 text-crimson-500" />
+            <Card
+              className="jobs-fade-up bg-white/85 backdrop-blur-sm ring-1 ring-blue-500/10 border-2 border-dashed border-blue-200 !rounded-2xl"
+              style={{ animationDelay: "280ms" }}
+            >
+              <CardBody className="text-center py-12">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="rounded-full bg-crimson-50 p-4">
+                    <ActivityIcon className="h-10 w-10 text-crimson-500" />
                   </div>
-                  <Heading variant="h4" className="text-ink">No activity recorded</Heading>
+                  <Heading variant="h4" className="font-extrabold text-ink">No activity recorded</Heading>
                   <Text variant="body" color="muted" className="max-w-md">
                     Activity will appear here as users interact with the platform.
                   </Text>

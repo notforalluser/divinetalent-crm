@@ -28,10 +28,6 @@ import {
 } from "lucide-react";
 import PageShell from "../components/layout/PageShell";
 
-/* ----------------------------------------------------------------------
-   DATA MODEL
-   ------------------------------------------------------------------- */
-
 const NW = 176; // node width
 const NH = 86; // node height
 const HW = NW / 2;
@@ -592,22 +588,25 @@ const VB_H = 1000;
 export default function CareerPath() {
   // `anchorId` = the first stage clicked. It fixes the green path (anchor -> citizen)
   // and locks every stage outside that path. `viewId` = whichever stage's details
-  // are currently open; clicking any stage still inside the active path just moves
-  // `viewId`, it never moves the anchor. Reset clears both.
+  // are currently open, shown in a popup modal. Clicking any stage still inside the
+  // active path just moves `viewId`, it never moves the anchor. Reset clears both.
   const [anchorId, setAnchorId] = useState(null);
   const [viewId, setViewId] = useState(null);
   const scrollRef = useRef(null);
-  const panelRef = useRef(null);
 
   const chain = anchorId ? CHAINS[anchorId] : null;
   const activeNodes = new Set(chain ? chain.nodes : []);
   const activeEdges = new Set(chain ? chain.edges : []);
   const locked = anchorId !== null;
 
+  // Close the popup on Escape.
   useEffect(() => {
-    if (viewId && panelRef.current) {
-      panelRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
+    if (!viewId) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setViewId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [viewId]);
 
   const handleSelect = (id) => {
@@ -638,178 +637,133 @@ export default function CareerPath() {
   return (
     <PageShell title="Career Path">
       <div style={styles.page}>
-      <style>{CSS_KEYFRAMES}</style>
+        <style>{CSS_KEYFRAMES}</style>
 
-      <div style={styles.header}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <div style={styles.eyebrow}>THE ROAD FROM CAMPUS TO CITIZENSHIP</div>
-            <h1 style={styles.h1}>Your visa journey, mapped out</h1>
-            <p style={styles.sub}>
-              {locked
-                ? "Your path is locked in green — click any stage still on it to see that stage's details, or reset to explore from a different point."
-                : "Tap any stage to lock in the route forward — from that point all the way to citizenship."}{" "}
-              Red tags above the line are what the law requires; indigo tags below are what we take care of for you. Any
-              student, from any country, can start at F-1 (academic study), M-1 (vocational study), or J-1 (exchange
-              program) — shown below.
-            </p>
+        {/* Hero — matching Jobs page style with white background, gradient mesh, and interactive chips */}
+        <div style={styles.heroWrap}>
+          <div style={styles.heroGridOverlay} />
+          <div className="hero-orb" style={styles.heroOrb1} />
+          <div className="hero-orb" style={{ ...styles.heroOrb2, animationDelay: "1.5s" }} />
+          <div style={{ position: "relative", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ maxWidth: 640 }}>
+              <h1 style={styles.heroTitle}>Your visa journey, mapped out</h1>
+              <div style={styles.heroEyebrowRow}>
+                <Sparkles size={12} />
+                THE ROAD FROM CAMPUS TO CITIZENSHIP
+              </div>
+            </div>
+            {locked && (
+              <button onClick={handleReset} style={styles.resetBtn}>
+                <RotateCcw size={14} />
+                Reset Path
+              </button>
+            )}
           </div>
-          {locked && (
-            <button onClick={handleReset} style={styles.resetBtn}>
-              <RotateCcw size={14} />
-              Reset
-            </button>
-          )}
         </div>
-      </div>
 
-      <Legend />
+        <div style={styles.scrollWrap} ref={scrollRef}>
+          <div style={{ position: "relative", width: VB_W, height: VB_H }}>
+            <svg
+              viewBox={`0 0 ${VB_W} ${VB_H}`}
+              width={VB_W}
+              height={VB_H}
+              style={{ position: "absolute", inset: 0, zIndex: 1 }}
+            >
+              <defs>
+                <marker id="arrow-dim" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" fill="#cbd5e1" />
+                </marker>
+                <marker id="arrow-active" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" fill="#10b981" />
+                </marker>
+              </defs>
 
-      {locked && <Stepper chain={chain} viewId={viewId} onPick={setViewId} />}
-
-      <div style={styles.scrollWrap} ref={scrollRef}>
-        <div style={{ position: "relative", width: VB_W, height: VB_H }}>
-          <svg
-            viewBox={`0 0 ${VB_W} ${VB_H}`}
-            width={VB_W}
-            height={VB_H}
-            style={{ position: "absolute", inset: 0, zIndex: 1 }}
-          >
-            <defs>
-              <marker id="arrow-dim" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M0,0 L10,5 L0,10 z" fill="#cbd5e1" />
-              </marker>
-              <marker id="arrow-active" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-                <path d="M0,0 L10,5 L0,10 z" fill="#10b981" />
-              </marker>
-            </defs>
-
-            {EDGES.map((e) => {
-              const isActive = activeEdges.has(e.id);
-              return (
-                <g key={e.id}>
-                  {isActive && (
+              {EDGES.map((e) => {
+                const isActive = activeEdges.has(e.id);
+                return (
+                  <g key={e.id}>
+                    {isActive && (
+                      <path
+                        d={e.path}
+                        fill="none"
+                        stroke="#10b981"
+                        strokeWidth={10}
+                        strokeLinecap="round"
+                        opacity={0.35}
+                        className="glow-path"
+                      />
+                    )}
                     <path
                       d={e.path}
                       fill="none"
-                      stroke="#10b981"
-                      strokeWidth={10}
+                      stroke={isActive ? "#10b981" : "#cbd5e1"}
+                      strokeWidth={isActive ? 3.5 : 2}
+                      strokeDasharray={e.dashed ? "2 7" : isActive ? "10 8" : "0"}
                       strokeLinecap="round"
-                      opacity={0.35}
-                      className="glow-path"
+                      markerEnd={`url(#${isActive ? "arrow-active" : "arrow-dim"})`}
+                      className={isActive ? "flow-path" : ""}
+                      style={{ transition: "stroke .35s ease, stroke-width .35s ease" }}
                     />
-                  )}
-                  <path
-                    d={e.path}
-                    fill="none"
-                    stroke={isActive ? "#10b981" : "#cbd5e1"}
-                    strokeWidth={isActive ? 3.5 : 2}
-                    strokeDasharray={e.dashed ? "2 7" : isActive ? "10 8" : "0"}
-                    strokeLinecap="round"
-                    markerEnd={`url(#${isActive ? "arrow-active" : "arrow-dim"})`}
-                    className={isActive ? "flow-path" : ""}
-                    style={{ transition: "stroke .35s ease, stroke-width .35s ease" }}
-                  />
-                </g>
+                  </g>
+                );
+              })}
+            </svg>
+
+            {/* Above / below annotations — rendered as pill badges with their own
+                background so they stay legible no matter what line or node sits
+                behind them. Dulled to gray whenever their edge isn't part of the
+                currently active (green) path. Every label group now stretches to
+                a fixed-width lane and left-aligns its text, so pills of different
+                lengths still line up cleanly instead of drifting to different
+                widths under the same edge. */}
+            {EDGES.map((e) => (
+              <EdgeLabels key={e.id + "-labels"} edge={e} active={activeEdges.has(e.id)} />
+            ))}
+
+            {/* Nodes */}
+            {Object.values(NODES).map((n) => {
+              const isActive = activeNodes.has(n.id);
+              const isDisabled = locked && !isActive;
+              return (
+                <NodeCard
+                  key={n.id}
+                  node={n}
+                  active={isActive}
+                  dim={isDisabled}
+                  disabled={isDisabled}
+                  viewing={viewId === n.id}
+                  onClick={() => handleSelect(n.id)}
+                />
               );
             })}
-          </svg>
-
-          {/* Above / below annotations — rendered as pill badges with their own
-              background so they stay legible no matter what line or node sits
-              behind them. Dulled to gray whenever their edge isn't part of the
-              currently active (green) path. Every label position is hand-placed
-              in its own clear lane so dense areas (like the H-1B/H-4 cluster)
-              never stack two badges on top of each other. */}
-          {EDGES.map((e) => (
-            <EdgeLabels key={e.id + "-labels"} edge={e} active={activeEdges.has(e.id)} />
-          ))}
-
-          {/* Nodes */}
-          {Object.values(NODES).map((n) => {
-            const isActive = activeNodes.has(n.id);
-            const isDisabled = locked && !isActive;
-            return (
-              <NodeCard
-                key={n.id}
-                node={n}
-                active={isActive}
-                dim={isDisabled}
-                disabled={isDisabled}
-                viewing={viewId === n.id}
-                onClick={() => handleSelect(n.id)}
-              />
-            );
-          })}
+          </div>
         </div>
-      </div>
 
-      <div ref={panelRef}>
+        {/* Stage details now open as a popup, not an inline panel below the map */}
         {viewId && (
-          <DetailsPanel
-            node={NODES[viewId]}
-            stepNumber={stepIndex + 1}
-            stepTotal={chain ? chain.nodes.length : 0}
-            canPrev={stepIndex > 0}
-            canNext={chain ? stepIndex < chain.nodes.length - 1 : false}
-            onPrev={() => stepTo(-1)}
-            onNext={() => stepTo(1)}
-            onClose={() => setViewId(null)}
-          />
+          <div className="modal-backdrop-in" style={styles.modalOverlay} onClick={() => setViewId(null)}>
+            <div className="modal-panel-in" style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
+              <DetailsPanel
+                node={NODES[viewId]}
+                stepNumber={stepIndex + 1}
+                stepTotal={chain ? chain.nodes.length : 0}
+                canPrev={stepIndex > 0}
+                canNext={chain ? stepIndex < chain.nodes.length - 1 : false}
+                onPrev={() => stepTo(-1)}
+                onNext={() => stepTo(1)}
+                onClose={() => setViewId(null)}
+              />
+            </div>
+          </div>
         )}
       </div>
-    </div>
     </PageShell>
-  );
-}
-
-function Stepper({ chain, viewId, onPick }) {
-  return (
-    <div style={styles.stepperWrap}>
-      {chain.nodes.map((id, i) => {
-        const n = NODES[id];
-        const isView = id === viewId;
-        return (
-          <div key={id} style={{ display: "flex", alignItems: "center" }}>
-            <button onClick={() => onPick(id)} style={styles.stepDot(isView)} title={n.title}>
-              {i + 1}
-            </button>
-            {i < chain.nodes.length - 1 && <span style={styles.stepLine} />}
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
 /* ----------------------------------------------------------------------
    SUBCOMPONENTS
    ------------------------------------------------------------------- */
-
-function Legend() {
-  const items = [
-    { swatch: "#10b981", label: "Your selected path", pulse: true },
-    { swatch: "#cbd5e1", label: "Other routes", dimText: true },
-    { swatch: REQ_COLOR, label: "Requirement (above line)", tag: true, bg: REQ_BG },
-    { swatch: PROVIDE_COLOR, label: "What we provide (below line)", tag: true, bg: PROVIDE_BG },
-  ];
-  return (
-    <div style={styles.legendRow}>
-      {items.map((it) => (
-        <div key={it.label} style={styles.legendItem}>
-          {it.tag ? (
-            <span style={{ ...styles.legendSwatch, background: it.bg, border: `1px solid ${it.swatch}33` }} />
-          ) : (
-            <span className={it.pulse ? "legend-pulse" : ""} style={{ ...styles.legendDot, background: it.swatch }} />
-          )}
-          <span style={{ ...styles.legendLabel, color: it.dimText ? DIM_COLOR : styles.legendLabel.color }}>
-            {it.label}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function LabelPill({ text, kind, active }) {
   // kind: "req" | "provide"
@@ -821,25 +775,26 @@ function LabelPill({ text, kind, active }) {
   return (
     <div
       style={{
-        display: "inline-flex",
+        display: "flex",
+        width: "100%",
+        boxSizing: "border-box",
         alignItems: "flex-start",
-        gap: 5,
+        gap: 6,
         background: bg,
         border: `1px solid ${border}`,
         color,
         fontSize: 10.5,
         fontWeight: 600,
-        lineHeight: 1.35,
+        lineHeight: 1.4,
         borderRadius: 7,
-        padding: "3.5px 8px 3.5px 6px",
+        padding: "5px 9px",
         textAlign: "left",
         boxShadow: active ? "0 1px 2px rgba(15,23,42,0.05)" : "none",
         transition: "background .35s ease, color .35s ease, border-color .35s ease",
-        maxWidth: "100%",
       }}
     >
-      <Icon size={11} style={{ flexShrink: 0, marginTop: 1.5 }} />
-      <span>{text}</span>
+      <Icon size={11} style={{ flexShrink: 0, marginTop: 2 }} />
+      <span style={{ flex: 1 }}>{text}</span>
     </div>
   );
 }
@@ -885,7 +840,7 @@ function EdgeLabels({ edge, active }) {
             width: 236,
             display: "flex",
             flexDirection: "column",
-            alignItems: "center",
+            alignItems: "stretch",
             gap: 4,
             opacity,
             zIndex: 2,
@@ -905,7 +860,7 @@ function EdgeLabels({ edge, active }) {
             width: 236,
             display: "flex",
             flexDirection: "column",
-            alignItems: "center",
+            alignItems: "stretch",
             gap: 4,
             opacity,
             zIndex: 2,
@@ -990,7 +945,7 @@ function NodeCard({ node, active, dim, disabled, viewing, onClick }) {
 function DetailsPanel({ node, stepNumber, stepTotal, canPrev, canNext, onPrev, onNext, onClose }) {
   const Icon = node.icon;
   return (
-    <div style={styles.panel} className="panel-in">
+    <div style={{ position: "relative" }}>
       <button onClick={onClose} style={styles.panelClose} aria-label="Close details panel">
         <X size={16} />
       </button>
@@ -1019,7 +974,9 @@ function DetailsPanel({ node, stepNumber, stepTotal, canPrev, canNext, onPrev, o
               </span>
             )}
           </div>
-          <h3 style={{ fontSize: 19, fontWeight: 800, color: "#0f172a", margin: 0 }}>{node.title}</h3>
+          <h3 style={{ fontSize: 19, fontWeight: 800, color: "#0f172a", margin: 0, fontFamily: "'Manrope','Inter',sans-serif" }}>
+            {node.title}
+          </h3>
         </div>
       </div>
 
@@ -1094,16 +1051,22 @@ const DIM_COLOR = "#94a3b8"; // muted slate — used for any annotation whose ed
 const DIM_BG = "#f8fafc";
 
 const CSS_KEYFRAMES = `
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500;600&display=swap');
 @keyframes dashFlow { to { stroke-dashoffset: -36; } }
 @keyframes glowPulse { 0%,100% { opacity: .18; } 50% { opacity: .5; } }
 @keyframes cardPulse { 0%,100% { box-shadow: 0 0 0 4px rgba(16,185,129,0.10), 0 8px 20px rgba(16,185,129,0.14);} 50% { box-shadow: 0 0 0 8px rgba(16,185,129,0.16), 0 8px 24px rgba(16,185,129,0.26);} }
-@keyframes dotPulse { 0%,100% { transform: scale(1); opacity: 1;} 50% { transform: scale(1.3); opacity: .6;} }
-@keyframes panelIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0);} }
+@keyframes heroFloat { 0%,100% { transform: translate(0,0);} 50% { transform: translate(6px,-10px);} }
+@keyframes modalBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalPanelIn { from { opacity: 0; transform: translateY(14px) scale(0.97);} to { opacity: 1; transform: translateY(0) scale(1);} }
 .flow-path { animation: dashFlow 1.1s linear infinite; }
 .glow-path { animation: glowPulse 2.2s ease-in-out infinite; }
 .node-pulse { animation: cardPulse 2.2s ease-in-out infinite; }
-.legend-pulse { animation: dotPulse 1.6s ease-in-out infinite; }
-.panel-in { animation: panelIn .3s ease; }
+.hero-orb { animation: heroFloat 7s ease-in-out infinite; }
+.modal-backdrop-in { animation: modalBackdropIn .18s ease; }
+.modal-panel-in { animation: modalPanelIn .22s cubic-bezier(.16,1,.3,1); }
+@media (prefers-reduced-motion: reduce) {
+  .flow-path, .glow-path, .node-pulse, .hero-orb, .modal-backdrop-in, .modal-panel-in { animation: none !important; }
+}
 `;
 
 const styles = {
@@ -1111,29 +1074,81 @@ const styles = {
     height: "100vh",
     width: "100%",
     background: "#f8fafc",
-    padding: "40px 24px 64px",
     fontFamily: "'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif",
     overflowY: "auto",
     overflowX: "hidden",
     WebkitOverflowScrolling: "touch",
     boxSizing: "border-box",
   },
-  header: { maxWidth: 780, margin: "0 auto 20px" },
-  eyebrow: { fontSize: 11.5, fontWeight: 700, letterSpacing: 1.4, color: "#059669" },
-  h1: { fontSize: 30, fontWeight: 800, color: "#0f172a", margin: "6px 0 8px", letterSpacing: -0.5 },
-  sub: { fontSize: 14.5, color: "#475569", lineHeight: 1.6, margin: 0 },
-  legendRow: {
-    maxWidth: 900,
-    margin: "0 auto 18px",
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 20,
-    alignItems: "center",
-    background: "#ffffff",
+
+  /* ---- Hero (white background, soft gradient blooms) ---- */
+  heroWrap: {
+    position: "relative",
+    overflow: "hidden",
+    margin: "0 auto 20px",
     border: "1px solid #e2e8f0",
-    borderRadius: 12,
-    padding: "10px 16px",
+    padding: "8px 15px",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
+    background:
+      "radial-gradient(60% 80% at 15% 20%, rgba(16,185,129,0.08), transparent 60%), " +
+      "radial-gradient(50% 70% at 88% 12%, rgba(59,130,246,0.06), transparent 60%), " +
+      "radial-gradient(55% 60% at 60% 100%, rgba(180,83,9,0.05), transparent 60%), " +
+      "#ffffff",
   },
+  heroGridOverlay: {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+    backgroundImage: "radial-gradient(rgba(15,23,42,0.05) 1px, transparent 1px)",
+    backgroundSize: "16px 16px",
+    WebkitMaskImage: "radial-gradient(ellipse 70% 100% at 50% 0%, black 40%, transparent 90%)",
+    maskImage: "radial-gradient(ellipse 70% 100% at 50% 0%, black 40%, transparent 90%)",
+  },
+  heroOrb1: {
+    position: "absolute",
+    top: -60,
+    right: -40,
+    width: 200,
+    height: 200,
+    borderRadius: "50%",
+    background: "rgba(16,185,129,0.12)",
+    filter: "blur(60px)",
+    pointerEvents: "none",
+  },
+  heroOrb2: {
+    position: "absolute",
+    bottom: -70,
+    left: 10,
+    width: 180,
+    height: 180,
+    borderRadius: "50%",
+    background: "rgba(59,130,246,0.10)",
+    filter: "blur(60px)",
+    pointerEvents: "none",
+  },
+  heroEyebrowRow: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 11.5,
+    fontWeight: 700,
+    letterSpacing: 1.4,
+    color: "#059669",
+  },
+  heroTitle: {
+    fontFamily: "'Manrope', 'Inter', sans-serif",
+    fontSize: 32,
+    fontWeight: 800,
+    letterSpacing: -0.6,
+    margin: "8px 0 8px",
+    backgroundImage: "linear-gradient(90deg, #0f172a 0%, #059669 65%, #10b981 100%)",
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    color: "#059669",
+    lineHeight: 1.15,
+  },
+
   resetBtn: {
     display: "flex",
     alignItems: "center",
@@ -1148,46 +1163,8 @@ const styles = {
     cursor: "pointer",
     flexShrink: 0,
     boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
+    transition: "all .2s ease",
   },
-  stepperWrap: {
-    maxWidth: 900,
-    margin: "0 auto 14px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexWrap: "wrap",
-    gap: 0,
-    background: "#ffffff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 12,
-    padding: "12px 16px",
-  },
-  stepDot: (isView) => ({
-    width: 28,
-    height: 28,
-    borderRadius: "50%",
-    border: isView ? "none" : "1.5px solid #a7f3d0",
-    background: isView ? "#059669" : "#ecfdf5",
-    color: isView ? "#ffffff" : "#059669",
-    fontSize: 12,
-    fontWeight: 700,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    transition: "all .25s ease",
-  }),
-  stepLine: {
-    width: 22,
-    height: 2,
-    background: "#a7f3d0",
-    display: "inline-block",
-  },
-  legendItem: { display: "flex", alignItems: "center", gap: 7 },
-  legendDot: { width: 10, height: 10, borderRadius: "50%", display: "inline-block" },
-  legendSwatch: { width: 16, height: 12, borderRadius: 4, display: "inline-block" },
-  legendLabel: { fontSize: 12, color: "#334155", fontWeight: 500 },
   scrollWrap: {
     maxWidth: 1200,
     margin: "0 auto",
@@ -1198,20 +1175,37 @@ const styles = {
     background: "#ffffff",
     boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
   },
-  panel: {
-    maxWidth: 1200,
-    margin: "20px auto 0",
-    background: "#ffffff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 16,
-    padding: "24px 26px",
-    position: "relative",
-    boxShadow: "0 8px 24px rgba(15,23,42,0.06)",
+
+  /* ---- Details popup ---- */
+  modalOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(15,23,42,0.45)",
+    backdropFilter: "blur(4px)",
+    WebkitBackdropFilter: "blur(4px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    zIndex: 60,
   },
+  modalPanel: {
+    position: "relative",
+    background: "#ffffff",
+    borderRadius: 18,
+    padding: "26px 28px",
+    width: "92vw",
+    maxWidth: 640,
+    maxHeight: "86vh",
+    overflowY: "auto",
+    boxShadow: "0 24px 60px rgba(15,23,42,0.25)",
+    border: "1px solid #e2e8f0",
+  },
+
   panelClose: {
     position: "absolute",
-    top: 16,
-    right: 16,
+    top: 0,
+    right: 0,
     width: 30,
     height: 30,
     borderRadius: 8,

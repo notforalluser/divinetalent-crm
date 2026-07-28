@@ -47,26 +47,103 @@ export default function Login() {
   if (isAuthenticated) return <Navigate to="/" replace />;
 
   return (
-    <div ref={stageRef} className="dt-login-stage relative min-h-screen w-full overflow-hidden bg-ink flex items-center justify-center p-6">
-      {/* Ambient background layer: cursor spotlight + slow-drifting orbs + faint grid */}
+    <div ref={stageRef} className="dt-login-stage relative min-h-screen w-full overflow-hidden bg-[#F7FAFF] flex items-center justify-center p-6">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');
+
+        .dt-login-stage {
+          --spot-x: 50%;
+          --spot-y: 40%;
+          font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+        }
+        .dt-login-stage h1, .dt-login-stage h2, .dt-login-stage h3, .dt-login-stage h4 {
+          font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+          letter-spacing: -0.012em;
+        }
+
+        .dt-grid {
+          background-image: radial-gradient(circle, rgba(59,130,246,0.09) 1px, transparent 1px);
+          background-size: 22px 22px;
+          mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 90%);
+        }
+
+        .dt-spotlight {
+          background: radial-gradient(
+            600px circle at var(--spot-x) var(--spot-y),
+            rgba(200, 16, 46, 0.10),
+            transparent 60%
+          );
+          transition: background 120ms ease-out;
+        }
+
+        @keyframes dt-drift-a {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(40px, -30px) scale(1.08); }
+          66% { transform: translate(-20px, 20px) scale(0.96); }
+        }
+        @keyframes dt-drift-b {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-50px, 30px) scale(1.1); }
+        }
+        @keyframes dt-drift-c {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          40% { transform: translate(30px, 40px) scale(0.94); }
+          70% { transform: translate(-30px, -10px) scale(1.05); }
+        }
+
+        .dt-orb-a { animation: dt-drift-a 22s ease-in-out infinite; }
+        .dt-orb-b { animation: dt-drift-b 26s ease-in-out infinite; }
+        .dt-orb-c { animation: dt-drift-c 30s ease-in-out infinite; }
+
+        .dt-card-enter {
+          animation: dt-card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes dt-card-in {
+          from { opacity: 0; transform: translateY(14px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .dt-orb-a, .dt-orb-b, .dt-orb-c, .dt-card-enter {
+            animation: none;
+          }
+          .dt-spotlight {
+            display: none;
+          }
+        }
+      `}</style>
+
+      {/* Ambient background layer: light blobs + dotted grid + cursor spotlight */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="dt-grid absolute inset-0 opacity-[0.07]" />
+        <div className="dt-grid absolute inset-0" />
+        <div
+          className="dt-orb-a absolute -top-32 -left-24 h-[26rem] w-[26rem] rounded-full blur-3xl opacity-40"
+          style={{ background: "radial-gradient(circle, #93c5fd 0%, transparent 70%)" }}
+        />
+        <div
+          className="dt-orb-b absolute top-10 right-[-6rem] h-[24rem] w-[24rem] rounded-full blur-3xl opacity-30"
+          style={{ background: "radial-gradient(circle, #f9a8d4 0%, transparent 70%)" }}
+        />
+        <div
+          className="dt-orb-c absolute bottom-[-8rem] left-1/3 h-[28rem] w-[28rem] rounded-full blur-3xl opacity-25"
+          style={{ background: "radial-gradient(circle, #fde68a 0%, transparent 70%)" }}
+        />
         <div className="dt-spotlight absolute inset-0" />
-        <div className="dt-orb dt-orb-a absolute h-[26rem] w-[26rem] rounded-full" />
-        <div className="dt-orb dt-orb-b absolute h-[20rem] w-[20rem] rounded-full" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/50 via-white/30 to-white/60" />
       </div>
 
-      <div className="dt-card-enter relative w-full max-w-sm rounded-2xl bg-paper p-8 shadow-2xl">
+      <div className="dt-card-enter relative w-full max-w-sm rounded-2xl bg-white/85 backdrop-blur-sm ring-1 ring-blue-500/10 p-8 shadow-xl">
         <div className="mb-6 grid items-center gap-3">
           <div className="flex h-8 shrink-0 items-center justify-center rounded-lg bg-white">
             <img src={logo} alt="Divine Talent" className="h-20 object-contain" />
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-sm text-slate text-semibold">Recruiter Command Center</span>
+            <span className="text-sm font-medium text-slate">Recruiter Command Center</span>
           </div>
         </div>
 
-        <Heading variant="h4">
+        <Heading variant="h4" className="text-ink">
           Welcome back
         </Heading>
         <Text variant="body" color="muted" className="mt-1.5 mb-6">
@@ -84,86 +161,13 @@ export default function Login() {
           </div>
         )}
 
-
-        <div className="mt-6 flex items-start gap-2 border-t border-line pt-5">
+        <div className="mt-6 flex items-start gap-2 border-t border-blue-100 pt-5">
           <ShieldCheck className="h-4 w-4 text-slate mt-0.5 shrink-0" />
           <Text variant="small" color="muted">
             Access restricted to authorized emails. Contact your administrator for access.
           </Text>
         </div>
-
       </div>
-
-      <style>{`
-        .dt-login-stage {
-          --spot-x: 50%;
-          --spot-y: 40%;
-        }
-
-        .dt-grid {
-          background-image:
-            linear-gradient(to right, #ffffff 1px, transparent 1px),
-            linear-gradient(to bottom, #ffffff 1px, transparent 1px);
-          background-size: 42px 42px;
-          mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 90%);
-        }
-
-        .dt-spotlight {
-          background: radial-gradient(
-            600px circle at var(--spot-x) var(--spot-y),
-            rgba(200, 28, 50, 0.16),
-            transparent 60%
-          );
-          transition: background 120ms ease-out;
-        }
-
-        .dt-orb {
-          filter: blur(70px);
-          opacity: 0.35;
-        }
-
-        .dt-orb-a {
-          top: -6rem;
-          left: -6rem;
-          background: radial-gradient(circle, #C81C32 0%, transparent 70%);
-          animation: dt-drift-a 18s ease-in-out infinite;
-        }
-
-        .dt-orb-b {
-          bottom: -8rem;
-          right: -6rem;
-          background: radial-gradient(circle, #7a0f1f 0%, transparent 70%);
-          animation: dt-drift-b 22s ease-in-out infinite;
-        }
-
-        @keyframes dt-drift-a {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50% { transform: translate(3rem, 2rem) scale(1.08); }
-        }
-
-        @keyframes dt-drift-b {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50% { transform: translate(-2.5rem, -2rem) scale(1.05); }
-        }
-
-        .dt-card-enter {
-          animation: dt-card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
-
-        @keyframes dt-card-in {
-          from { opacity: 0; transform: translateY(14px) scale(0.98); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .dt-orb-a, .dt-orb-b, .dt-card-enter {
-            animation: none;
-          }
-          .dt-spotlight {
-            display: none;
-          }
-        }
-      `}</style>
     </div>
   );
 }

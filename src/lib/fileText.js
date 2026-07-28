@@ -1,7 +1,3 @@
-// pdfjs-dist and mammoth are dynamically imported below (see getPdfjs and
-// extractFromDocx) so their sizeable parsing code only loads when someone
-// actually uploads a PDF or DOCX -- not on every page load.
-
 let pdfjsLibPromise = null;
 function getPdfjs() {
   if (!pdfjsLibPromise) {
@@ -16,6 +12,31 @@ function getPdfjs() {
   return pdfjsLibPromise;
 }
 
+function groupItemsIntoLines(items) {
+  const sorted = [...items].sort((a, b) => {
+    const yDiff = b.transform[5] - a.transform[5];
+    if (Math.abs(yDiff) > 3) return yDiff;
+    return a.transform[4] - b.transform[4];
+  });
+
+  const lines = [];
+  let currentLine = [];
+  let lastY = null;
+
+  for (const item of sorted) {
+    const y = Math.round(item.transform[5]);
+    if (lastY === null || Math.abs(y - lastY) <= 3) {
+      currentLine.push(item.str);
+    } else {
+      lines.push(currentLine.join(" ").replace(/\s+/g, " ").trim());
+      currentLine = [item.str];
+    }
+    lastY = y;
+  }
+  if (currentLine.length) lines.push(currentLine.join(" ").replace(/\s+/g, " ").trim());
+  return lines.filter((l) => l.length > 0);
+}
+
 async function extractFromPdf(file) {
   const pdfjsLib = await getPdfjs();
   const buffer = await file.arrayBuffer();
@@ -24,7 +45,8 @@ async function extractFromPdf(file) {
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
     const content = await page.getTextContent();
-    text += content.items.map((item) => item.str).join(" ") + "\n";
+    const lines = groupItemsIntoLines(content.items);
+    text += lines.join("\n") + "\n";
   }
   return text;
 }
@@ -45,14 +67,6 @@ async function extractFromPlainText(file) {
   });
 }
 
-/**
- * Renders page 1 of an uploaded PDF to a small PNG data URL, so the AI
- * Match "scanning" animation can sweep a scanline across the person's
- * actual resume instead of a generic placeholder. Returns null for
- * anything that isn't a renderable PDF (DOCX/DOC/TXT/MD, or a PDF that
- * fails to render for any reason) -- callers should fall back to a
- * generic document icon in that case.
- */
 export async function generateResumeThumbnail(file, maxWidth = 280) {
   if (!file.name.toLowerCase().endsWith(".pdf")) return null;
   try {
@@ -73,13 +87,6 @@ export async function generateResumeThumbnail(file, maxWidth = 280) {
   }
 }
 
-/**
- * Extracts plain text from an uploaded resume file. Supports PDF, DOCX,
- * TXT and MD natively. Legacy .doc (old binary Word format) can't be
- * parsed in the browser without a server -- for that case we fall back to
- * a short synthetic placeholder so the rest of the flow (ATS scoring,
- * job matching) still has something to work with instead of crashing.
- */
 export async function extractResumeText(file) {
   const name = file.name.toLowerCase();
   try {

@@ -43,17 +43,18 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
   }
 
   return (
-    <div className="flex flex-col rounded-md overflow-hidden">
-      {/* Small, colored, interactive scrollbar for the table body */}
+    <div className="flex flex-col rounded-xs overflow-hidden">
+      {/* Small, colored, interactive scrollbar for the table body — matches
+          the blue/pink dashboard palette instead of a flat crimson bar. */}
       <style>{`
         .dt-scroll::-webkit-scrollbar { height: 6px; }
         .dt-scroll::-webkit-scrollbar-track { background: transparent; }
         .dt-scroll::-webkit-scrollbar-thumb {
-          background: linear-gradient(90deg, #c8102e, #af102b);
+          background: linear-gradient(90deg, #3b82f6, #ec4899);
           border-radius: 9999px;
         }
-        .dt-scroll::-webkit-scrollbar-thumb:hover { background: #8c0a1f; }
-        .dt-scroll { scrollbar-width: thin; scrollbar-color: #d6d6d6 transparent; }
+        .dt-scroll::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+        .dt-scroll { scrollbar-width: thin; scrollbar-color: #bfdbfe transparent; }
       `}</style>
 
       <div className="dt-scroll overflow-x-auto">
@@ -61,7 +62,7 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
           <thead>
             <tr
               className={cx(
-                "bg-gradient-to-r from-crimson-600/90 to-crimson-500/90",
+                "bg-gradient-to-r from-blue-500/90 via-blue-500/85 to-pink-400/80",
                 settings.density === "compact" ? "text-[10.5px]" : "text-[11.5px]"
               )}
             >
@@ -71,7 +72,7 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
                   onClick={() => col.sortable && toggleSort(col.key)}
                   className={cx(
                     "px-4 py-2 font-bold uppercase tracking-wider text-white whitespace-nowrap",
-                    col.sortable && "cursor-pointer select-none hover:text-crimson-100"
+                    col.sortable && "cursor-pointer select-none hover:text-blue-50"
                   )}
                 >
                   <span className="inline-flex items-center gap-1">
@@ -91,7 +92,7 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
           <tbody>
             {pageRows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + 1} className="px-4 py-16 text-center bg-white">
+                <td colSpan={columns.length + 1} className="px-4 py-16 text-center bg-white/85 backdrop-blur-sm">
                   <div className="flex flex-col items-center gap-2 text-slate">
                     <Inbox className="h-6 w-6" />
                     <span className="text-sm">{emptyLabel}</span>
@@ -106,8 +107,8 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
                   <tr
                     key={row.id || i}
                     className={cx(
-                      "border-b border-line last:border-0 hover:bg-crimson-50/50 transition-colors",
-                      odd ? "bg-white" : "bg-cloud/50",
+                      "border-b border-blue-50 last:border-0 hover:bg-blue-50/60 transition-colors",
+                      odd ? "bg-white/85" : "bg-blue-50/30",
                       settings.density === "compact" ? "text-xs" : "text-[13.5px]"
                     )}
                   >
@@ -131,7 +132,7 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
       </div>
 
       {sorted.length > 0 && (
-        <div className="flex items-center justify-between border-t border-line px-4 py-2.5 text-xs text-slate bg-white">
+        <div className="flex items-center justify-between border-t border-blue-100 px-4 py-2.5 text-xs text-slate bg-white/85 backdrop-blur-sm">
           <span>
             Showing <span className="font-semibold text-ink">{startIndex + 1}</span>-
             <span className="font-semibold text-ink">{Math.min(currentPage * pageSize, sorted.length)}</span> of{" "}
@@ -141,7 +142,7 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="rounded-md p-1.5 hover:bg-crimson-50 hover:text-crimson-600 disabled:opacity-30 transition-colors"
+              className="p-1.5 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -151,7 +152,7 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="rounded-md p-1.5 hover:bg-crimson-50 hover:text-crimson-600 disabled:opacity-30 transition-colors"
+              className="p-1.5 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 transition-colors"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

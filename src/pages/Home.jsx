@@ -12,7 +12,6 @@
 // import { Heading, Text } from "../components/ui/Typography";
 // import Button from "../components/ui/Button";
 // import Badge from "../components/ui/Badge";
-// import WatchList from "../components/ui/WatchList";
 // import { useAuth } from "../context/AuthContext";
 // import { useData } from "../context/DataContext";
 // import { useSaved } from "../context/SavedContext";
@@ -24,7 +23,7 @@
 // }
 
 // // DataTable component integrated directly into Home page
-// // Now density-aware (compact / comfortable), matching components/ui/DataTable.jsx
+// // Density-aware (compact / comfortable), matching components/ui/DataTable.jsx
 // function DataTable({ columns, rows, emptyLabel = "No records found" }) {
 //   const { settings } = useSettings();
 //   const [sort, setSort] = useState({ key: null, dir: "asc" });
@@ -205,6 +204,59 @@
 //   return Math.round((refDate - d) / 86400000);
 // }
 
+// // Modern, interactive SaaS-style background:
+// // layered animated gradient blobs + subtle dot grid, sitting behind all content.
+// function DashboardBackground() {
+//   return (
+//     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#f7f7fb]">
+//       <style>{`
+//         @keyframes floatBlobA {
+//           0%, 100% { transform: translate(0, 0) scale(1); }
+//           33% { transform: translate(40px, -30px) scale(1.08); }
+//           66% { transform: translate(-20px, 20px) scale(0.96); }
+//         }
+//         @keyframes floatBlobB {
+//           0%, 100% { transform: translate(0, 0) scale(1); }
+//           50% { transform: translate(-50px, 30px) scale(1.1); }
+//         }
+//         @keyframes floatBlobC {
+//           0%, 100% { transform: translate(0, 0) scale(1); }
+//           40% { transform: translate(30px, 40px) scale(0.94); }
+//           70% { transform: translate(-30px, -10px) scale(1.05); }
+//         }
+//         .dash-blob-a { animation: floatBlobA 22s ease-in-out infinite; }
+//         .dash-blob-b { animation: floatBlobB 26s ease-in-out infinite; }
+//         .dash-blob-c { animation: floatBlobC 30s ease-in-out infinite; }
+//         .dash-grid {
+//           background-image: radial-gradient(circle, rgba(15,15,20,0.06) 1px, transparent 1px);
+//           background-size: 22px 22px;
+//           mask-image: radial-gradient(ellipse 80% 60% at 50% 20%, black 40%, transparent 90%);
+//         }
+//       `}</style>
+
+//       {/* base dot grid */}
+//       <div className="dash-grid absolute inset-0" />
+
+//       {/* gradient blobs */}
+//       <div
+//         className="dash-blob-a absolute -top-32 -left-24 h-[26rem] w-[26rem] rounded-full blur-3xl opacity-40"
+//         style={{ background: "radial-gradient(circle, #c8102e 0%, transparent 70%)" }}
+//       />
+//       <div
+//         className="dash-blob-b absolute top-10 right-[-6rem] h-[24rem] w-[24rem] rounded-full blur-3xl opacity-30"
+//         style={{ background: "radial-gradient(circle, #3b82f6 0%, transparent 70%)" }}
+//       />
+//       <div
+//         className="dash-blob-c absolute bottom-[-8rem] left-1/3 h-[28rem] w-[28rem] rounded-full blur-3xl opacity-25"
+//         style={{ background: "radial-gradient(circle, #10b981 0%, transparent 70%)" }}
+//       />
+
+//       {/* soft top fade so content stays readable */}
+//       <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/40 to-white/70" />
+//     </div>
+//   );
+// }
+
 // export default function Home() {
 //   const { user } = useAuth();
 //   const { visible: data } = useData();
@@ -365,8 +417,9 @@
 
 //   return (
 //     <PageShell title="Home" onSearch={setQuery}>
+//       <DashboardBackground />
 //       <div className="mx-auto space-y-4 px-4 sm:px-0">
-//         <div className="bg-white p-4 sm:p-5 lg:p-8 relative overflow-hidden">
+//         <div className="bg-white/80 backdrop-blur-sm p-4 sm:p-5 lg:p-8 relative overflow-hidden ring-1 ring-black/5 shadow-sm">
 //           {/* Top-right gradient spot */}
 //           <div className="pointer-events-none absolute -top-24 -right-24 h-40 w-100 rounded-full bg-gradient-to-br from-crimson-500/30 via-crimson-400/10 to-transparent blur-3xl animate-pulse" />
 
@@ -567,7 +620,7 @@
 //         {/* Charts */}
 //         <div className="p-2">
 //           <div className="grid md:grid-cols-2 gap-4 mb-4">
-//             <Card>
+//             <Card className="bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
 //               <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5">
 //                 <div>
 //                   <Heading variant="h4" className="mt-1 text-base sm:text-lg">
@@ -594,7 +647,7 @@
 //               </CardBody>
 //             </Card>
 
-//             <Card>
+//             <Card className="bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
 //               <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5">
 //                 <div>
 //                   <Heading variant="h4" className="mt-1 text-base sm:text-lg">
@@ -632,7 +685,7 @@
 
 //           {/* Interview Sheet with DataTable */}
 
-//           <Card className="mb-4">
+//           <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
 //             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
 //               <div>
 //                 <Heading variant="h4" className="mt-0.5 text-base sm:text-lg">
@@ -654,7 +707,7 @@
 //           </Card>
 
 //           {/* Technical Help with DataTable */}
-//           <Card className="mb-4">
+//           <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
 //             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
 //               <div>
 //                 <Heading variant="h4" className="mt-0.5 text-base sm:text-lg">
@@ -676,7 +729,7 @@
 //           </Card>
 
 //           {/* Recent Activity */}
-//           <Card className="mb-4">
+//           <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
 //             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 gap-2 sm:gap-0">
 //               <div>
 //                 <Heading variant="h4" className="mt-1 text-base sm:text-lg">
@@ -711,9 +764,9 @@
 //             </CardBody>
 //           </Card>
 
-//           {/* Today's Recap and WatchList side by side */}
-//           <div className="grid lg:grid-cols-[1fr_320px] gap-5 mb-4">
-//             <Card className="min-w-0">
+//           {/* Today's Recap — full width now that WatchList is removed */}
+//           <div className="mb-4">
+//             <Card className="min-w-0 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
 //               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 gap-3 sm:gap-0">
 //                 <div>
 //                   <Text variant="eyebrow" color="accent" className="text-xs">
@@ -764,17 +817,12 @@
 //                 )}
 //               </CardBody>
 //             </Card>
-
-//             <div className="lg:block">
-//               <WatchList />
-//             </div>
 //           </div>
 //         </div>
 //       </div>
 //     </PageShell>
 //   );
 // }
-
 
 
 
@@ -802,6 +850,136 @@ import InterviewTable from "../components/ui/InterviewTable";
 
 function cx(...args) {
   return args.filter(Boolean).join(" ");
+}
+
+// Global type system for this page: a confident geometric display face for
+// headings/numbers, a neutral workhorse for body copy, and a mono face
+// reserved for stat figures so the dashboard's numbers read as "data".
+function DashboardTypography() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+      .home-dashboard {
+        --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+        --font-body: 'Inter', 'Plus Jakarta Sans', sans-serif;
+        --font-mono: 'IBM Plex Mono', 'Menlo', monospace;
+        font-family: var(--font-body);
+      }
+      .home-dashboard h1,
+      .home-dashboard h2,
+      .home-dashboard h3,
+      .home-dashboard h4,
+      .home-dashboard h5,
+      .home-dashboard h6 {
+        font-family: var(--font-display);
+        letter-spacing: -0.012em;
+      }
+      .home-dashboard .stat-figure {
+        font-family: var(--font-mono);
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+    `}</style>
+  );
+}
+
+// Quick-access card grid: icon badge top-left, small colored eyebrow,
+// bold heading, one-line description, underlined link pinned to the
+// bottom of the card. Layout, spacing and type rhythm follow the
+// referenced four-card grid; icons and colors are the app's own.
+const QUICK_ACCESS_CARDS = [
+  {
+    key: "ai-match",
+    eyebrow: "AI Match",
+    eyebrowColor: "#8b2fc9",
+    heading: "Empower your search with AI Match",
+    description: "Upload a resume and let AI surface the strongest-matching jobs, ranked by skill, role and location.",
+    linkLabel: "Get started",
+    to: "/ai-match",
+    icon: Sparkles,
+    badgeBg: "linear-gradient(135deg, #f472b6 0%, #c8102e 45%, #8b2fc9 100%)",
+    iconColor: "#ffffff",
+  },
+  {
+    key: "candidates",
+    eyebrow: "Candidates",
+    eyebrowColor: "#2563eb",
+    heading: "Review your pipeline",
+    description: "Browse every candidate in the pool and save the strongest fits for your open roles.",
+    linkLabel: "View candidates",
+    to: "/candidates",
+    icon: Users,
+    badgeBg: "#eaf1ff",
+    iconColor: "#2563eb",
+  },
+  {
+    key: "jobs",
+    eyebrow: "Jobs",
+    eyebrowColor: "#0f9d58",
+    heading: "Explore live roles",
+    description: "See every active listing pulled straight from your workbook, refreshed as clients post.",
+    linkLabel: "Browse jobs",
+    to: "/jobs",
+    icon: Briefcase,
+    badgeBg: "#e6f6ec",
+    iconColor: "#0f9d58",
+  },
+  {
+    key: "interviews",
+    eyebrow: "Interviews",
+    eyebrowColor: "#c2760c",
+    heading: "Stay ahead of your schedule",
+    description: "Check today's rounds, upcoming interviews and recent outcomes in one place.",
+    linkLabel: "View schedule",
+    to: "/interviews",
+    icon: CalendarClock,
+    badgeBg: "#fdf0e0",
+    iconColor: "#c2760c",
+  },
+];
+
+function QuickAccessGrid() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {QUICK_ACCESS_CARDS.map((card) => {
+        const Icon = card.icon;
+        return (
+          <Link
+            key={card.key}
+            to={card.to}
+            className="group flex flex-col justify-between rounded-[20px] bg-white p-6 shadow-[0_1px_2px_rgba(20,10,10,0.04),0_8px_24px_-12px_rgba(120,20,40,0.12)] ring-1 ring-crimson-600/5 transition-all hover:-translate-y-0.5 hover:shadow-[0_1px_2px_rgba(20,10,10,0.06),0_16px_32px_-14px_rgba(120,20,40,0.18)]"
+          >
+            <div>
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-[14px]"
+                style={{ background: card.badgeBg }}
+              >
+                <Icon className="h-6 w-6" style={{ color: card.iconColor }} strokeWidth={2} />
+              </div>
+
+              <p
+                className="mt-4 text-[13px] font-semibold"
+                style={{ color: card.eyebrowColor }}
+              >
+                {card.eyebrow}
+              </p>
+              <h3 className="mt-1 text-[18px] sm:text-[19px] font-bold text-[#1b1b1b] leading-snug">
+                {card.heading}
+              </h3>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-[#5a5a5a]">
+                {card.description}
+              </p>
+            </div>
+
+            <span className="mt-5 inline-flex w-fit items-center text-[13px] font-bold text-[#1b1b1b] underline underline-offset-2 decoration-1 group-hover:text-crimson-600">
+              {card.linkLabel}
+            </span>
+          </Link>
+        );
+      })}
+    </div>
+  );
 }
 
 // DataTable component integrated directly into Home page
@@ -843,11 +1021,11 @@ function DataTable({ columns, rows, emptyLabel = "No records found" }) {
         .dt-scroll::-webkit-scrollbar { height: 6px; }
         .dt-scroll::-webkit-scrollbar-track { background: transparent; }
         .dt-scroll::-webkit-scrollbar-thumb {
-          background: linear-gradient(90deg, #c8102e, #af102b);
+          background: linear-gradient(90deg, #c8102e, #8c0a1f);
           border-radius: 9999px;
         }
-        .dt-scroll::-webkit-scrollbar-thumb:hover { background: #8c0a1f; }
-        .dt-scroll { scrollbar-width: thin; scrollbar-color: #d6d6d6 transparent; }
+        .dt-scroll::-webkit-scrollbar-thumb:hover { background: #6d0818; }
+        .dt-scroll { scrollbar-width: thin; scrollbar-color: #e7c6cb transparent; }
       `}</style>
 
       <div className="dt-scroll overflow-x-auto">
@@ -855,7 +1033,7 @@ function DataTable({ columns, rows, emptyLabel = "No records found" }) {
           <thead>
             <tr
               className={cx(
-                "bg-gradient-to-r from-crimson-600 to-crimson-500",
+                "bg-gradient-to-r from-crimson-700 via-crimson-600 to-crimson-500",
                 isCompact ? "text-[10.5px]" : "text-[11.5px]"
               )}
             >
@@ -901,8 +1079,8 @@ function DataTable({ columns, rows, emptyLabel = "No records found" }) {
                   <tr
                     key={row.id || row.InterviewID || row.HelpID || i}
                     className={cx(
-                      "border-b border-line last:border-0 hover:bg-crimson-50/50 transition-colors",
-                      odd ? "bg-white" : "bg-cloud/50",
+                      "border-b border-line last:border-0 hover:bg-crimson-50/60 transition-colors",
+                      odd ? "bg-white" : "bg-[#FBF3F1]/60",
                       isCompact ? "text-xs" : "text-[13.5px]"
                     )}
                   >
@@ -987,10 +1165,11 @@ function daysAgo(dateStr, refDate) {
 }
 
 // Modern, interactive SaaS-style background:
-// layered animated gradient blobs + subtle dot grid, sitting behind all content.
+// layered animated gradient blobs (all drawn from one warm crimson family)
+// + a subtle crimson-tinted dot grid, sitting behind all content.
 function DashboardBackground() {
   return (
-    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#f7f7fb]">
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#FBF5F3]">
       <style>{`
         @keyframes floatBlobA {
           0%, 100% { transform: translate(0, 0) scale(1); }
@@ -1010,27 +1189,27 @@ function DashboardBackground() {
         .dash-blob-b { animation: floatBlobB 26s ease-in-out infinite; }
         .dash-blob-c { animation: floatBlobC 30s ease-in-out infinite; }
         .dash-grid {
-          background-image: radial-gradient(circle, rgba(15,15,20,0.06) 1px, transparent 1px);
+          background-image: radial-gradient(circle, rgba(139,15,36,0.07) 1px, transparent 1px);
           background-size: 22px 22px;
           mask-image: radial-gradient(ellipse 80% 60% at 50% 20%, black 40%, transparent 90%);
         }
       `}</style>
 
-      {/* base dot grid */}
+      {/* base dot grid, tinted with the brand red */}
       <div className="dash-grid absolute inset-0" />
 
-      {/* gradient blobs */}
+      {/* gradient blobs — crimson, gold and deep wine, one warm family */}
       <div
         className="dash-blob-a absolute -top-32 -left-24 h-[26rem] w-[26rem] rounded-full blur-3xl opacity-40"
         style={{ background: "radial-gradient(circle, #c8102e 0%, transparent 70%)" }}
       />
       <div
         className="dash-blob-b absolute top-10 right-[-6rem] h-[24rem] w-[24rem] rounded-full blur-3xl opacity-30"
-        style={{ background: "radial-gradient(circle, #3b82f6 0%, transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, #d97706 0%, transparent 70%)" }}
       />
       <div
         className="dash-blob-c absolute bottom-[-8rem] left-1/3 h-[28rem] w-[28rem] rounded-full blur-3xl opacity-25"
-        style={{ background: "radial-gradient(circle, #10b981 0%, transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, #7a1f3d 0%, transparent 70%)" }}
       />
 
       {/* soft top fade so content stays readable */}
@@ -1199,9 +1378,10 @@ export default function Home() {
 
   return (
     <PageShell title="Home" onSearch={setQuery}>
+      <DashboardTypography />
       <DashboardBackground />
-      <div className="mx-auto space-y-4 px-4 sm:px-0">
-        <div className="bg-white/80 backdrop-blur-sm p-4 sm:p-5 lg:p-8 relative overflow-hidden ring-1 ring-black/5 shadow-sm">
+      <div className="home-dashboard mx-auto space-y-4 px-4 sm:px-0">
+        <div className="bg-white/80 backdrop-blur-sm p-4 sm:p-5 lg:p-8 relative overflow-hidden ring-1 ring-crimson-600/5 shadow-sm">
           {/* Top-right gradient spot */}
           <div className="pointer-events-none absolute -top-24 -right-24 h-40 w-100 rounded-full bg-gradient-to-br from-crimson-500/30 via-crimson-400/10 to-transparent blur-3xl animate-pulse" />
 
@@ -1216,7 +1396,7 @@ export default function Home() {
           </div>
 
           <div className="grid lg:grid-cols-[1.3fr_2fr] gap-4 items-stretch relative z-10 mt-4">
-            <Card className="relative overflow-hidden text-white p-4 sm:p-6 flex flex-col justify-between bg-gradient-to-r from-crimson-700 to-crimson-500">
+            <Card className="relative overflow-hidden text-white p-4 sm:p-6 flex flex-col justify-between bg-gradient-to-br from-crimson-700 via-crimson-600 to-[#7a1f3d]">
               <svg
                 className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 opacity-20"
                 viewBox="0 0 200 200"
@@ -1244,7 +1424,7 @@ export default function Home() {
                   variant="primary"
                   icon={Upload}
                   onClick={() => navigate("/ai-match")}
-                  className="bg-red-800 text-crimson-600 hover:bg-crimson-50 shadow-sm text-sm"
+                  className="bg-crimson-500 text-crimson-700 hover:bg-crimson-50 shadow-sm text-sm"
                 >
                   Upload resume
                 </Button>
@@ -1259,15 +1439,15 @@ export default function Home() {
 
             <div className="flex flex-col">
               {/* First row - 4 stat cards with vertical dividers */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 relative border-b border-gray-200">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 relative border-b border-crimson-100">
                 {/* Stat 1 */}
-                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 flex items-center justify-center">
+                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-crimson-100 flex items-center justify-center">
                   <div className="text-center">
                     <Text variant="eyebrow" color="muted" className="text-[8px] sm:text-[10px] tracking-wide leading-tight uppercase">
                       Active jobs
                     </Text>
                     <Heading variant="stat" color="accent" className="relative mt-1 text-lg sm:text-xl lg:text-2xl" style={{ fontSize: "clamp(1rem, 2vw, 1.5rem)", lineHeight: "1.75rem" }}>
-                      {compactNumber(stats.activeJobs)}
+                      <span className="stat-figure">{compactNumber(stats.activeJobs)}</span>
                     </Heading>
                     <Text variant="small" color="muted" className="relative mt-0.5 text-[9px] sm:text-[11px]">
                       across markets
@@ -1276,13 +1456,13 @@ export default function Home() {
                 </div>
 
                 {/* Stat 2 */}
-                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 flex items-center justify-center">
+                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-crimson-100 flex items-center justify-center">
                   <div className="text-center">
                     <Text variant="eyebrow" color="muted" className="text-[8px] sm:text-[10px] tracking-wide leading-tight uppercase">
                       Companies
                     </Text>
                     <Heading variant="stat" color="accent" className="relative mt-1 text-lg sm:text-xl lg:text-2xl" style={{ fontSize: "clamp(1rem, 2vw, 1.5rem)", lineHeight: "1.75rem" }}>
-                      {compactNumber(stats.companies)}
+                      <span className="stat-figure">{compactNumber(stats.companies)}</span>
                     </Heading>
                     <Text variant="small" color="muted" className="relative mt-0.5 text-[9px] sm:text-[11px]">
                       hiring now
@@ -1291,13 +1471,13 @@ export default function Home() {
                 </div>
 
                 {/* Stat 3 */}
-                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 flex items-center justify-center">
+                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-crimson-100 flex items-center justify-center">
                   <div className="text-center">
                     <Text variant="eyebrow" color="muted" className="text-[8px] sm:text-[10px] tracking-wide leading-tight uppercase">
                       Countries
                     </Text>
                     <Heading variant="stat" color="accent" className="relative mt-1 text-lg sm:text-xl lg:text-2xl" style={{ fontSize: "clamp(1rem, 2vw, 1.5rem)", lineHeight: "1.75rem" }}>
-                      {stats.countries}
+                      <span className="stat-figure">{stats.countries}</span>
                     </Heading>
                     <Text variant="small" color="muted" className="relative mt-0.5 text-[9px] sm:text-[11px]">
                       global reach
@@ -1312,7 +1492,7 @@ export default function Home() {
                       Fresh · 7 days
                     </Text>
                     <Heading variant="stat" color="accent" className="relative mt-1 text-lg sm:text-xl lg:text-2xl" style={{ fontSize: "clamp(1rem, 2vw, 1.5rem)", lineHeight: "1.75rem" }}>
-                      {compactNumber(stats.fresh)}
+                      <span className="stat-figure">{compactNumber(stats.fresh)}</span>
                     </Heading>
                     <Text variant="small" color="muted" className="relative mt-0.5 text-[9px] sm:text-[11px]">
                       just posted
@@ -1324,10 +1504,10 @@ export default function Home() {
               {/* Horizontal divider with "This week at a glance" */}
               <div className="relative py-2 sm:py-3">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full h-[1px] bg-gray-200" />
+                  <div className="w-full h-[1px] bg-crimson-100" />
                 </div>
                 <div className="relative flex justify-center">
-                  <span className="px-3 sm:px-4 py-0.5 bg-white text-[8px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                  <span className="px-3 sm:px-4 py-0.5 bg-white text-[8px] sm:text-[10px] font-semibold text-crimson-700/70 uppercase tracking-wider">
                     This week at a glance
                   </span>
                 </div>
@@ -1336,13 +1516,13 @@ export default function Home() {
               {/* Second row - 4 stat cards with vertical dividers */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 relative">
                 {/* Stat 5 */}
-                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 flex items-center justify-center">
+                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-crimson-100 flex items-center justify-center">
                   <div className="text-center">
                     <Text variant="eyebrow" color="muted" className="text-[8px] sm:text-[10px] tracking-wide leading-tight uppercase">
                       New candidates
                     </Text>
                     <Heading variant="stat" color="primary" className="relative mt-1 text-lg sm:text-xl lg:text-2xl" style={{ fontSize: "clamp(1rem, 2vw, 1.5rem)", lineHeight: "1.75rem" }}>
-                      {weekGlance.newThisWeek}
+                      <span className="stat-figure">{weekGlance.newThisWeek}</span>
                     </Heading>
                     <Text variant="small" color="muted" className="relative mt-0.5 text-[9px] sm:text-[11px]">
                       joined this week
@@ -1351,13 +1531,13 @@ export default function Home() {
                 </div>
 
                 {/* Stat 6 */}
-                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 flex items-center justify-center">
+                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-crimson-100 flex items-center justify-center">
                   <div className="text-center">
                     <Text variant="eyebrow" color="muted" className="text-[8px] sm:text-[10px] tracking-wide leading-tight uppercase">
                       Interviews today
                     </Text>
                     <Heading variant="stat" color="accent" className="relative mt-1 text-lg sm:text-xl lg:text-2xl" style={{ fontSize: "clamp(1rem, 2vw, 1.5rem)", lineHeight: "1.75rem" }}>
-                      {weekGlance.interviewsToday}
+                      <span className="stat-figure">{weekGlance.interviewsToday}</span>
                     </Heading>
                     <Text variant="small" color="muted" className="relative mt-0.5 text-[9px] sm:text-[11px]">
                       {weekGlance.today.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
@@ -1366,13 +1546,13 @@ export default function Home() {
                 </div>
 
                 {/* Stat 7 */}
-                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 flex items-center justify-center">
+                <div className="relative px-2 sm:px-3 py-3 sm:py-4 border-r border-crimson-100 flex items-center justify-center">
                   <div className="text-center">
                     <Text variant="eyebrow" color="muted" className="text-[8px] sm:text-[10px] tracking-wide leading-tight uppercase">
                       Interviews · week
                     </Text>
                     <Heading variant="stat" color="primary" className="relative mt-1 text-lg sm:text-xl lg:text-2xl" style={{ fontSize: "clamp(1rem, 2vw, 1.5rem)", lineHeight: "1.75rem" }}>
-                      {weekGlance.interviewsWeek}
+                      <span className="stat-figure">{weekGlance.interviewsWeek}</span>
                     </Heading>
                     <Text variant="small" color="muted" className="relative mt-0.5 text-[9px] sm:text-[11px]">
                       today +6 days
@@ -1387,7 +1567,7 @@ export default function Home() {
                       Placements
                     </Text>
                     <Heading variant="stat" color="primary" className="relative mt-1 text-lg sm:text-xl lg:text-2xl" style={{ fontSize: "clamp(1rem, 2vw, 1.5rem)", lineHeight: "1.75rem" }}>
-                      {weekGlance.placedThisMonth}
+                      <span className="stat-figure">{weekGlance.placedThisMonth}</span>
                     </Heading>
                     <Text variant="small" color="muted" className="relative mt-0.5 text-[9px] sm:text-[11px]">
                       last 30 days
@@ -1399,10 +1579,19 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Charts */}
-        <div className="p-2">
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
-            <Card className="bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
+        {/* Quick access — soft gradient band behind a grid of white cards,
+            matching the referenced layout: icon badge, eyebrow, heading,
+            description, underlined link. */}
+        <div className="relative overflow-hidden rounded-[24px]">
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-40"
+            style={{
+              background: "linear-gradient(135deg, #fbe4ea 0%, #f6ecf9 45%, #eef4fb 100%)",
+            }}
+          />
+          <div className="relative p-4 sm:p-6">
+            <div className="grid md:grid-cols-2 gap-4 mb-4">
+            <Card className="bg-white/85 backdrop-blur-sm ring-1 ring-crimson-600/5">
               <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5">
                 <div>
                   <Heading variant="h4" className="mt-1 text-base sm:text-lg">
@@ -1415,21 +1604,21 @@ export default function Home() {
                   <AreaChart data={appsTrend} margin={{ left: -20 }}>
                     <defs>
                       <linearGradient id="homeAppsTrend" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#098a25" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#098a25" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#c8102e" stopOpacity={0.32} />
+                        <stop offset="95%" stopColor="#c8102e" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e7e6ea" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1e3e2" />
                     <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                     <Tooltip />
-                    <Area type="monotone" dataKey="count" stroke="#098a25" fill="url(#homeAppsTrend)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="count" stroke="#c8102e" fill="url(#homeAppsTrend)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardBody>
             </Card>
 
-            <Card className="bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
+            <Card className="bg-white/85 backdrop-blur-sm ring-1 ring-crimson-600/5">
               <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5">
                 <div>
                   <Heading variant="h4" className="mt-1 text-base sm:text-lg">
@@ -1442,32 +1631,38 @@ export default function Home() {
                   <AreaChart data={placementsTrend} margin={{ left: -20 }}>
                     <defs>
                       <linearGradient id="homePlacementsTrend" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#098a25" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#098a25" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#d97706" stopOpacity={0.32} />
+                        <stop offset="95%" stopColor="#d97706" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e7e6ea" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1e3e2" />
                     <XAxis dataKey="week" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                     <Tooltip />
                     <Area
                       type="monotone"
                       dataKey="count"
-                      stroke="#098a25"
+                      stroke="#d97706"
                       fill="url(#homePlacementsTrend)"
                       strokeWidth={2.5}
-                      dot={{ r: 4, fill: "#098a25", strokeWidth: 0 }}
-                      activeDot={{ r: 5, fill: "#098a25", strokeWidth: 0 }}
+                      dot={{ r: 4, fill: "#d97706", strokeWidth: 0 }}
+                      activeDot={{ r: 5, fill: "#d97706", strokeWidth: 0 }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardBody>
             </Card>
           </div>
+          </div>
+        </div>
+
+        {/* Charts */}
+        <div className="p-2">
+          
 
           {/* Interview Sheet with DataTable */}
 
-          <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
+          <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-crimson-600/5">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
               <div>
                 <Heading variant="h4" className="mt-0.5 text-base sm:text-lg">
@@ -1489,7 +1684,7 @@ export default function Home() {
           </Card>
 
           {/* Technical Help with DataTable */}
-          <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
+          <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-crimson-600/5">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
               <div>
                 <Heading variant="h4" className="mt-0.5 text-base sm:text-lg">
@@ -1511,7 +1706,7 @@ export default function Home() {
           </Card>
 
           {/* Recent Activity */}
-          <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
+          <Card className="mb-4 bg-white/85 backdrop-blur-sm ring-1 ring-crimson-600/5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 gap-2 sm:gap-0">
               <div>
                 <Heading variant="h4" className="mt-1 text-base sm:text-lg">
@@ -1530,7 +1725,7 @@ export default function Home() {
                   const Icon = ACTIVITY_ICONS[a.Action] || ActivityIcon;
                   return (
                     <div key={a.ActivityID} className="flex items-start gap-3 px-4 sm:px-5 py-2.5 sm:py-3">
-                      <span className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-cloud flex items-center justify-center shrink-0 text-ink-soft">
+                      <span className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-crimson-50 flex items-center justify-center shrink-0 text-crimson-600">
                         <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </span>
                       <div className="min-w-0 flex-1">
@@ -1548,7 +1743,7 @@ export default function Home() {
 
           {/* Today's Recap — full width now that WatchList is removed */}
           <div className="mb-4">
-            <Card className="min-w-0 bg-white/85 backdrop-blur-sm ring-1 ring-black/5">
+            <Card className="min-w-0 bg-white/85 backdrop-blur-sm ring-1 ring-crimson-600/5">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 gap-3 sm:gap-0">
                 <div>
                   <Text variant="eyebrow" color="accent" className="text-xs">
@@ -1580,7 +1775,7 @@ export default function Home() {
                       <Link
                         to={`/candidates/${c.CandidateID}`}
                         key={c.CandidateID}
-                        className="flex items-center gap-3 sm:gap-4 py-3 sm:py-3.5 hover:bg-cloud/60 -mx-2 px-2 rounded-lg transition-colors"
+                        className="flex items-center gap-3 sm:gap-4 py-3 sm:py-3.5 hover:bg-crimson-50/60 -mx-2 px-2 rounded-lg transition-colors"
                       >
                         <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-crimson-50 text-crimson-600 flex items-center justify-center text-xs font-bold shrink-0">
                           {c.Name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
