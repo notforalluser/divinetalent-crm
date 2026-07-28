@@ -153,9 +153,18 @@ export function deriveCandidateRoles(profile) {
   if (fromHeadline) rolesSet.add(fromHeadline);
 
   const roles = Array.from(rolesSet);
-  const domainSources = Array.from(
-    new Set([...roles, (profile.headline || "").trim()].filter(Boolean))
-  );
+
+  // IMPORTANT: domainSources drives which job *categories* are considered a
+  // match. It intentionally uses ONLY the clean role phrases (not the raw
+  // headline/summary text), because free-text fields often mention adjacent
+  // tools/skills (e.g. "Data Analyst | data engineering, SQL, Python") that
+  // would otherwise leak into unrelated domains — e.g. the word
+  // "engineering" pulling in Software Engineering jobs like "Java
+  // Developer" for a candidate who is really a Data Analyst. Restricting
+  // the source to the role titles themselves keeps matches tightly within
+  // the candidate's actual field (Senior Data Analyst -> Data Analyst,
+  // Data Engineer, Data Scientist, etc.), not the whole document.
+  const domainSources = roles;
 
   return { roles, domainSources };
 }
@@ -219,21 +228,65 @@ export function findMatchingActiveJobs(jobs, roles, limit = Infinity, domainSour
     .map(({ job }) => job);
 }
 
-function shuffled(arr) {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
+/**
+ * Extracts a representative numeric value from a free-text salary range
+ * string (e.g. "$50,000 - $70,000", "$50K-$70K", "60000"). Returns the
+ * average of all numbers found, or null if nothing parseable is found
+ * (e.g. "Competitive", empty string).
+ */
+export function parseSalaryValue(salaryRange) {
+  if (!salaryRange || typeof salaryRange !== "string") return null;
+  const matches = salaryRange.match(/[\d,]+(\.\d+)?\s*(k|K)?/g);
+  if (!matches || matches.length === 0) return null;
+
+  const numbers = matches
+    .map((m) => {
+      const isK = /k/i.test(m);
+      const num = parseFloat(m.replace(/[^\d.]/g, ""));
+      if (Number.isNaN(num) || num <= 0) return null;
+      return isK ? num * 1000 : num;
+    })
+    .filter((n) => n !== null);
+
+  if (numbers.length === 0) return null;
+  return numbers.reduce((a, b) => a + b, 0) / numbers.length;
 }
 
+/**
+ * Assigns per-row eligibility for the matched jobs table.
+ *
+ * - If the candidate is overall eligible, every matched job is eligible.
+ * - If the candidate is NOT overall eligible, we still surface a small
+ *   number of "eligible" rows so the table isn't a wall of red — but those
+ *   rows are deliberately the lowest-salary matches (not random), with
+ *   eligibilityReason: "low-salary" so the UI can label them clearly.
+ *   Jobs with an unparseable salary are treated as high (never chosen as
+ *   the low-salary exception) since we can't verify they're actually low.
+ */
 export function assignCompanyEligibility(matchedJobs, overallEligible) {
   if (overallEligible) {
-    return matchedJobs.map((j) => ({ ...j, rowEligible: true }));
+    return matchedJobs.map((j) => ({ ...j, rowEligible: true, eligibilityReason: "qualified" }));
   }
+
   const n = matchedJobs.length;
-  const eligibleCount = n === 0 ? 0 : Math.min(3, Math.max(1, Math.round(n * 0.2)));
-  const eligibleIds = new Set(shuffled(matchedJobs).slice(0, eligibleCount).map((j) => j.JobID));
-  return matchedJobs.map((j) => ({ ...j, rowEligible: eligibleIds.has(j.JobID) }));
+  if (n === 0) return [];
+
+  const bySalary = matchedJobs
+    .map((job) => ({ job, salary: parseSalaryValue(job.SalaryRange) }))
+    .sort((a, b) => {
+      const aVal = a.salary == null ? Infinity : a.salary;
+      const bVal = b.salary == null ? Infinity : b.salary;
+      return aVal - bVal;
+    });
+
+  const eligibleCount = Math.min(3, Math.max(1, Math.round(n * 0.2)));
+  const eligibleIds = new Set(
+    bySalary.slice(0, eligibleCount).map(({ job }) => job.JobID)
+  );
+
+  return matchedJobs.map((j) => ({
+    ...j,
+    rowEligible: eligibleIds.has(j.JobID),
+    eligibilityReason: eligibleIds.has(j.JobID) ? "low-salary" : "not-eligible",
+  }));
 }

@@ -865,7 +865,9 @@ export default function AIMatch() {
       render: (r) => (
         <div className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${r.rowEligible ? "bg-emerald-50 text-emerald-700" : "bg-pink-50 text-pink-600"}`}>
           {r.rowEligible ? <CircleCheck className="h-3 w-3" /> : <CircleX className="h-3 w-3" />}
-          {r.rowEligible ? "Eligible" : "Not Eligible"}
+          {r.rowEligible
+            ? (r.eligibilityReason === "low-salary" ? "Eligible · Entry Salary" : "Eligible")
+            : "Not Eligible"}
         </div>
       ),
     },
