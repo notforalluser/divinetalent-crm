@@ -805,9 +805,9 @@ export default function AIMatch() {
         const profile = resumeProfile;
         const eligible = isEligible(score, settings);
 
-        const { roles: candidateRoles, domainSources } = deriveCandidateRoles(profile);
+        const { roles: candidateRoles, domainSources, skillsText } = deriveCandidateRoles(profile);
         const raw = candidateRoles.length > 0
-          ? findMatchingActiveJobs(data.Jobs, candidateRoles, undefined, domainSources)
+          ? findMatchingActiveJobs(data.Jobs, candidateRoles, undefined, domainSources, skillsText)
           : [];
         const matched = assignCompanyEligibility(raw, eligible);
 
@@ -825,14 +825,14 @@ export default function AIMatch() {
   const profile = useMemo(() => (scanResult ? scanResult.profile : null), [scanResult]);
   const eligible = scanResult ? scanResult.eligible : false;
 
-  const { roles: candidateRoles, domainSources: candidateDomainSources } = useMemo(
+  const { roles: candidateRoles, domainSources: candidateDomainSources, skillsText: candidateSkillsText } = useMemo(
     () => deriveCandidateRoles(profile),
     [profile]
   );
 
-  const matchedJobs = useMemo(() => {
+   const matchedJobs = useMemo(() => {
     if (!profile || !candidateRoles.length) return [];
-    const raw = findMatchingActiveJobs(data.Jobs, candidateRoles, undefined, candidateDomainSources);
+    const raw = findMatchingActiveJobs(data.Jobs, candidateRoles, undefined, candidateDomainSources, candidateSkillsText);
     const assigned = assignCompanyEligibility(raw, eligible);
 
     return assigned

@@ -2,8 +2,6 @@ const DOMAINS = {
   "Software Engineering": [
     "software", "developer", "engineer", "engineering", "programmer",
     "full stack", "fullstack", "frontend", "front end", "backend", "back end",
-    "devops", "site reliability", "sre", "mobile", "ios", "android",
-    "qa engineer", "sdet", "cloud engineer", "systems engineer",
   ],
   "Data & Analytics": [
     "data", "analyst", "analytics", "data scientist", "machine learning",
@@ -54,6 +52,33 @@ const DOMAINS = {
   ],
 };
 
+// Job-title "disciplines" nested inside the broad Software Engineering /
+// Data domains that we do NOT want to auto-match a generic candidate to
+// just because the title contains a bare word like "engineer" or
+// "developer". A job carrying one of these tags is only shown to a
+// candidate whose own resume (roles/headline or skills) explicitly shows
+// the same specialty — e.g. a plain "Software Developer" candidate should
+// NOT see "Network Engineer", "Site Reliability Engineer", "AI/ML
+// Engineer", or "Salesforce Developer" unless their resume actually
+// mentions networking, SRE/devops, AI/ML, or Salesforce respectively.
+// There is NO fallback bypass for these — shared generic tech tokens
+// (python, sql, aws, etc.) are NOT sufficient evidence on their own,
+// because that was previously letting AI/ML Engineer, Network Engineer,
+// etc. leak through for candidates with none of that background.
+const SPECIALTY_TAGS = {
+  network: ["network engineer", "network administrator", "network security", "network"],
+  systems: ["systems engineer", "system administrator", "sysadmin"],
+  cloud: ["cloud engineer", "cloud architect", "cloud"],
+  devops: ["devops", "site reliability", "sre", "platform engineer", "infrastructure engineer"],
+  qa: ["qa engineer", "sdet", "test engineer", "quality assurance", "quality analyst"],
+  mobile: ["ios developer", "android developer", "mobile developer", "flutter", "react native"],
+  ai_ml: ["ai/ml", "ai engineer", "ml engineer", "machine learning engineer", "artificial intelligence", "machine learning"],
+  data: ["data engineer", "data scientist", "data analyst", "business intelligence", "data science"],
+  salesforce: ["salesforce"],
+  sap: ["sap consultant", "sap developer", "sap"],
+  security: ["security engineer", "cybersecurity", "penetration tester", "information security"],
+};
+
 const TECH_TOKENS = [
   "java", ".net", "c#", "python", "javascript", "typescript",
   "react", "reactjs", "angular", "vue", "node", "node.js", "nodejs",
@@ -76,12 +101,36 @@ const KEYWORD_PATTERNS = Object.entries(DOMAINS).flatMap(([domain, keywords]) =>
   keywords.map((kw) => ({ domain, re: new RegExp(`\\b${escapeRegExp(kw)}\\b`, "i") }))
 );
 
+const SPECIALTY_PATTERNS = Object.entries(SPECIALTY_TAGS).flatMap(([tag, phrases]) =>
+  phrases.map((p) => ({ tag, re: new RegExp(`\\b${escapeRegExp(p)}\\b`, "i") }))
+);
+
+/**
+ * Collapses whitespace around slashes before specialty matching, so
+ * "AI/ML Engineer" and "AI / ML Engineer" both normalize to "ai/ml
+ * engineer" and match the same "ai/ml" phrase pattern.
+ */
+function normalizeSpecialtyText(text) {
+  return (text || "").toLowerCase().replace(/\s*\/\s*/g, "/");
+}
+
 /** Returns the set of domain names whose keywords appear in `text`. */
 function detectDomains(text) {
   const found = new Set();
   if (!text) return found;
   for (const { domain, re } of KEYWORD_PATTERNS) {
     if (re.test(text)) found.add(domain);
+  }
+  return found;
+}
+
+/** Returns the set of specialty tags (network, devops, ai_ml, salesforce, ...) present in `text`. */
+function detectSpecialtyTags(text) {
+  const found = new Set();
+  const normalized = normalizeSpecialtyText(text);
+  if (!normalized) return found;
+  for (const { tag, re } of SPECIALTY_PATTERNS) {
+    if (re.test(normalized)) found.add(tag);
   }
   return found;
 }
@@ -143,7 +192,7 @@ export function extractRoleFromHeadline(headline) {
 }
 
 export function deriveCandidateRoles(profile) {
-  if (!profile) return { roles: [], domainSources: [] };
+  if (!profile) return { roles: [], domainSources: [], skillsText: "" };
 
   const rolesSet = new Set();
   for (const r of profile.jobRoles || []) {
@@ -154,22 +203,22 @@ export function deriveCandidateRoles(profile) {
 
   const roles = Array.from(rolesSet);
 
-  // IMPORTANT: domainSources drives which job *categories* are considered a
-  // match. It intentionally uses ONLY the clean role phrases (not the raw
-  // headline/summary text), because free-text fields often mention adjacent
-  // tools/skills (e.g. "Data Analyst | data engineering, SQL, Python") that
-  // would otherwise leak into unrelated domains — e.g. the word
-  // "engineering" pulling in Software Engineering jobs like "Java
-  // Developer" for a candidate who is really a Data Analyst. Restricting
-  // the source to the role titles themselves keeps matches tightly within
-  // the candidate's actual field (Senior Data Analyst -> Data Analyst,
-  // Data Engineer, Data Scientist, etc.), not the whole document.
+  // domainSources drives which broad job *category* is considered a match
+  // (Software Engineering, Data & Analytics, etc). It intentionally uses
+  // ONLY the clean role phrases, not raw headline/summary text, to avoid
+  // stray words in a sentence pulling in unrelated domains.
   const domainSources = roles;
 
-  return { roles, domainSources };
+  // skillsText is extra evidence for the specialty gate only (does the
+  // resume's skills section actually mention Salesforce, AI/ML,
+  // networking, etc) — kept separate so a long skills list can't quietly
+  // widen the broad domain match on its own.
+  const skillsText = (profile.skills || []).join(" ");
+
+  return { roles, domainSources, skillsText };
 }
 
-export function scoreJobRelevance(job, roles, domainSources = roles) {
+export function scoreJobRelevance(job, roles, domainSources = roles, skillsText = "") {
   const title = (job.Title || "").toLowerCase();
   if (!title) return 0;
 
@@ -197,9 +246,28 @@ export function scoreJobRelevance(job, roles, domainSources = roles) {
     }
   }
 
+  // Direct title match (role literally appears on the resume) always wins
+  // — the candidate explicitly claimed that title, so the specialty guard
+  // below doesn't apply here.
   if (titleScore >= 100) return 100;
   if (titleScore >= 80) return hasTechOverlap ? 95 : 80;
 
+  // --- Specialty guard ---
+  // A job whose title belongs to a specific discipline (network, cloud,
+  // devops/SRE, QA, mobile, AI/ML, data, Salesforce, SAP, security) is
+  // ONLY eligible if the candidate's own roles/headline or skills show
+  // that same specialty. No generic-tech-token bypass here on purpose —
+  // sharing a common token like "python" or "sql" with the job posting is
+  // NOT enough evidence the candidate actually works in that discipline.
+  const jobSpecialty = detectSpecialtyTags(title);
+  if (jobSpecialty.size > 0) {
+    const candidateSpecialtyText = `${(domainSources || []).join(" ")} ${skillsText || ""}`;
+    const candidateSpecialty = detectSpecialtyTags(candidateSpecialtyText);
+    const specialtyOverlap = [...jobSpecialty].some((t) => candidateSpecialty.has(t));
+    if (!specialtyOverlap) return 0;
+  }
+
+  // --- Domain-fallback path (generic dev/data roles only) ---
   const jobDomains = detectDomains(title);
   if (jobDomains.size === 0) return 0;
 
@@ -210,15 +278,15 @@ export function scoreJobRelevance(job, roles, domainSources = roles) {
   return 0;
 }
 
-export function jobMatchesAnyRole(job, roles, domainSources = roles) {
+export function jobMatchesAnyRole(job, roles, domainSources = roles, skillsText = "") {
   if (!roles || roles.length === 0) return false;
-  return scoreJobRelevance(job, roles, domainSources) > 0;
+  return scoreJobRelevance(job, roles, domainSources, skillsText) > 0;
 }
 
-export function findMatchingActiveJobs(jobs, roles, limit = Infinity, domainSources = roles) {
+export function findMatchingActiveJobs(jobs, roles, limit = Infinity, domainSources = roles, skillsText = "") {
   if (!roles || roles.length === 0) return [];
   return jobs
-    .map((j) => ({ job: j, score: scoreJobRelevance(j, roles, domainSources) }))
+    .map((j) => ({ job: j, score: scoreJobRelevance(j, roles, domainSources, skillsText) }))
     .filter(({ job, score }) => job.Status === "Active" && score > 0)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
@@ -256,12 +324,14 @@ export function parseSalaryValue(salaryRange) {
  * Assigns per-row eligibility for the matched jobs table.
  *
  * - If the candidate is overall eligible, every matched job is eligible.
- * - If the candidate is NOT overall eligible, we still surface a small
- *   number of "eligible" rows so the table isn't a wall of red — but those
- *   rows are deliberately the lowest-salary matches (not random), with
- *   eligibilityReason: "low-salary" so the UI can label them clearly.
- *   Jobs with an unparseable salary are treated as high (never chosen as
- *   the low-salary exception) since we can't verify they're actually low.
+ * - If the candidate is NOT overall eligible: exactly ONE row is marked
+ *   eligible — the single lowest-salary match, tagged
+ *   eligibilityReason: "low-salary" — and that row is pinned to the very
+ *   front of the returned array so it's guaranteed visible on the FIRST
+ *   PAGE of the results table, regardless of page size or where it
+ *   originally ranked. Every other row is "not-eligible". Jobs with an
+ *   unparseable salary are treated as high (never chosen) since we can't
+ *   verify they're actually low.
  */
 export function assignCompanyEligibility(matchedJobs, overallEligible) {
   if (overallEligible) {
@@ -271,22 +341,24 @@ export function assignCompanyEligibility(matchedJobs, overallEligible) {
   const n = matchedJobs.length;
   if (n === 0) return [];
 
-  const bySalary = matchedJobs
-    .map((job) => ({ job, salary: parseSalaryValue(job.SalaryRange) }))
-    .sort((a, b) => {
-      const aVal = a.salary == null ? Infinity : a.salary;
-      const bVal = b.salary == null ? Infinity : b.salary;
-      return aVal - bVal;
-    });
+  const bySalary = [...matchedJobs].sort((a, b) => {
+    const aVal = parseSalaryValue(a.SalaryRange);
+    const bVal = parseSalaryValue(b.SalaryRange);
+    const aSafe = aVal == null ? Infinity : aVal;
+    const bSafe = bVal == null ? Infinity : bVal;
+    return aSafe - bSafe;
+  });
 
-  const eligibleCount = Math.min(3, Math.max(1, Math.round(n * 0.2)));
-  const eligibleIds = new Set(
-    bySalary.slice(0, eligibleCount).map(({ job }) => job.JobID)
-  );
+  const eligibleId = bySalary[0].JobID;
 
-  return matchedJobs.map((j) => ({
+  const tagged = matchedJobs.map((j) => ({
     ...j,
-    rowEligible: eligibleIds.has(j.JobID),
-    eligibilityReason: eligibleIds.has(j.JobID) ? "low-salary" : "not-eligible",
+    rowEligible: j.JobID === eligibleId,
+    eligibilityReason: j.JobID === eligibleId ? "low-salary" : "not-eligible",
   }));
+
+  // Pin the single eligible row to the front so it always lands on page 1.
+  const eligibleRow = tagged.find((j) => j.rowEligible);
+  const rest = tagged.filter((j) => !j.rowEligible);
+  return eligibleRow ? [eligibleRow, ...rest] : tagged;
 }
