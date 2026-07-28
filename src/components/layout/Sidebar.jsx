@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import {
   Home, Briefcase, Sparkles, Users, Bookmark, Activity, BarChart3,
   UsersRound, Settings, Radio, CalendarClock, SearchCheck, Milestone,
-  ChevronLeft,
+  ChevronLeft, Crown, // Add Crown icon for Plans
 } from "lucide-react";
 import { Text } from "../ui/Typography";
 import logo from "../../assets/logo.png";
@@ -25,16 +25,17 @@ const NAV_GROUPS = [
       { to: "/special-search", label: "Special Search", icon: SearchCheck },
       { to: "/candidates", label: "Candidates", icon: Users },
       { to: "/interviews", label: "Interview", icon: CalendarClock },
-      { to: "/path", label: "Path", icon: Milestone },
-      { to: "/saved", label: "Saved", icon: Bookmark },
+      { to: "/plans", label: "Plan", icon: Crown }, // Changed from CalendarClock to Crown
+      { to: "/path", label: "Visa Path", icon: Milestone },
     ],
   },
   {
     label: "Insights",
     items: [
+      { to: "/recruiters", label: "Recruiters", icon: UsersRound },
       { to: "/activity", label: "Activity", icon: Activity },
       { to: "/reports", label: "Reports", icon: BarChart3 },
-      { to: "/recruiters", label: "Recruiters", icon: UsersRound },
+      { to: "/saved", label: "Saved", icon: Bookmark },
     ],
   },
   {
@@ -90,7 +91,7 @@ export default function Sidebar() {
           <img
             src={logo2}
             alt="Company logo"
-            className="h-14 w-aut object-contain"
+            className="h-14 w-auto object-contain"
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}

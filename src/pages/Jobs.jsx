@@ -9,6 +9,12 @@ import {
   Globe2,
   BadgeCheck,
   Sparkles,
+  CheckCircle,
+  XCircle,
+  Clock,
+  HelpCircle,
+  BarChart3,
+  PieChart as PieChartIcon,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -22,8 +28,11 @@ import {
   Pie,
   Cell,
   Legend,
-  RadialBarChart,
-  RadialBar,
+  BarChart,
+  Bar,
+  ComposedChart,
+  Line,
+  Scatter,
 } from "recharts";
 import PageShell from "../components/layout/PageShell";
 import { Card, CardBody } from "../components/ui/Card";
@@ -37,12 +46,14 @@ import { timeAgo, dateKey, nowIST, addDays } from "../lib/time";
 
 // Soft, airy palette: light blue as the primary signal, light pink/rose as
 // the secondary accent, warm amber/yellow as the tertiary, and a semantic
-// green reserved for "yes" states. No crimson, no black fills in charts.
+// green reserved for "yes" states.
 const BLUE = "#3b82f6";
 const PINK = "#ec4899";
 const AMBER = "#f59e0b";
 const GREEN = "#10b981";
-const PALETTE = [BLUE, PINK, AMBER, GREEN, "#60a5fa", "#f9a8d4"];
+const PURPLE = "#8b5cf6";
+const CYAN = "#06b6d4";
+const PALETTE = [BLUE, PINK, AMBER, GREEN, PURPLE, CYAN];
 
 function groupCount(rows, key) {
   const map = {};
@@ -57,13 +68,13 @@ function cx(...args) {
   return args.filter(Boolean).join(" ");
 }
 
-// Meaningful color per visa status, instead of one flat blue for everything.
+// Meaningful color per visa status
 function visaColor(name) {
   const n = (name || "").toLowerCase();
   if (n.includes("yes")) return GREEN;
   if (n.includes("no")) return PINK;
   if (n.includes("case")) return AMBER;
-  return BLUE; // unknown / not specified / other
+  return BLUE;
 }
 
 /* ---------- Presentational helpers ---------- */
@@ -89,14 +100,173 @@ function ChartCard({ title, span, children, height = 260, headerExtra, delay = 0
   );
 }
 
-function VisaCard({ data, span, delay = 0 }) {
-  const [hovered, setHovered] = useState(null);
+// New Visa Statistics Component with Histogram and Bar Chart
+function VisaStatistics({ data, jobs, span, delay = 0 }) {
+  const [view, setView] = useState("distribution"); // "distribution" | "byIndustry" | "bySalary"
+  
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
-  const ringData = data.slice(0, 4).map((d) => ({
-    ...d,
-    pct: Math.round((d.value / total) * 100),
-    fill: visaColor(d.name),
-  }));
+  
+  // Calculate visa statistics
+  const yesCount = data.find(d => d.name.toLowerCase().includes('yes'))?.value || 0;
+  const noCount = data.find(d => d.name.toLowerCase().includes('no'))?.value || 0;
+  const caseCount = data.find(d => d.name.toLowerCase().includes('case'))?.value || 0;
+  
+  const yesPercentage = Math.round((yesCount / total) * 100);
+  const noPercentage = Math.round((noCount / total) * 100);
+  const casePercentage = Math.round((caseCount / total) * 100);
+
+  // By Industry (simulated data - in real app, this would come from data)
+  const byIndustry = useMemo(() => {
+    const industries = {};
+    jobs.forEach(job => {
+      const industry = job.Industry || 'Unknown';
+      if (!industries[industry]) {
+        industries[industry] = { yes: 0, no: 0, case: 0 };
+      }
+      const visa = job.VisaSponsorship || '';
+      if (visa.toLowerCase().includes('yes')) industries[industry].yes++;
+      else if (visa.toLowerCase().includes('no')) industries[industry].no++;
+      else if (visa.toLowerCase().includes('case')) industries[industry].case++;
+      else industries[industry].unknown = (industries[industry].unknown || 0) + 1;
+    });
+    return Object.entries(industries)
+      .map(([name, values]) => ({
+        name,
+        yes: values.yes || 0,
+        no: values.no || 0,
+        case: values.case || 0,
+        total: (values.yes || 0) + (values.no || 0) + (values.case || 0) + (values.unknown || 0)
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  }, [jobs]);
+
+  // By Salary Range (simulated data)
+  const bySalary = useMemo(() => {
+    const ranges = {
+      '0-50k': { yes: 0, no: 0, case: 0 },
+      '50k-100k': { yes: 0, no: 0, case: 0 },
+      '100k-150k': { yes: 0, no: 0, case: 0 },
+      '150k-200k': { yes: 0, no: 0, case: 0 },
+      '200k+': { yes: 0, no: 0, case: 0 }
+    };
+    
+    jobs.forEach(job => {
+      const salary = job.SalaryRange || '';
+      let range = '0-50k';
+      if (salary.includes('50k') || salary.includes('50K')) range = '50k-100k';
+      else if (salary.includes('100k') || salary.includes('100K')) range = '100k-150k';
+      else if (salary.includes('150k') || salary.includes('150K')) range = '150k-200k';
+      else if (salary.includes('200k') || salary.includes('200K')) range = '200k+';
+      
+      const visa = job.VisaSponsorship || '';
+      if (visa.toLowerCase().includes('yes')) ranges[range].yes++;
+      else if (visa.toLowerCase().includes('no')) ranges[range].no++;
+      else if (visa.toLowerCase().includes('case')) ranges[range].case++;
+    });
+    
+    return Object.entries(ranges).map(([name, values]) => ({
+      name,
+      yes: values.yes || 0,
+      no: values.no || 0,
+      case: values.case || 0,
+      total: values.yes + values.no + values.case
+    }));
+  }, [jobs]);
+
+  // By Experience Level
+  const byExperience = useMemo(() => {
+    const levels = {};
+    jobs.forEach(job => {
+      const level = job.ExperienceLevel || 'Entry Level';
+      if (!levels[level]) {
+        levels[level] = { yes: 0, no: 0, case: 0 };
+      }
+      const visa = job.VisaSponsorship || '';
+      if (visa.toLowerCase().includes('yes')) levels[level].yes++;
+      else if (visa.toLowerCase().includes('no')) levels[level].no++;
+      else if (visa.toLowerCase().includes('case')) levels[level].case++;
+    });
+    return Object.entries(levels)
+      .map(([name, values]) => ({
+        name,
+        yes: values.yes || 0,
+        no: values.no || 0,
+        case: values.case || 0
+      }));
+  }, [jobs]);
+
+  // By Location
+  const byLocation = useMemo(() => {
+    const locations = {};
+    jobs.forEach(job => {
+      const city = job.City || 'Unknown';
+      if (!locations[city]) {
+        locations[city] = { yes: 0, no: 0, case: 0 };
+      }
+      const visa = job.VisaSponsorship || '';
+      if (visa.toLowerCase().includes('yes')) locations[city].yes++;
+      else if (visa.toLowerCase().includes('no')) locations[city].no++;
+      else if (visa.toLowerCase().includes('case')) locations[city].case++;
+    });
+    return Object.entries(locations)
+      .map(([name, values]) => ({
+        name,
+        yes: values.yes || 0,
+        no: values.no || 0,
+        case: values.case || 0,
+        total: values.yes + values.no + values.case
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+  }, [jobs]);
+
+  const renderChart = () => {
+    switch(view) {
+      case "distribution":
+        return (
+          <BarChart data={data} layout="vertical" margin={{ left: 4, right: 20, top: 8, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e6eefc" horizontal={false} />
+            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
+            <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10 }} />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar dataKey="value" fill={BLUE} radius={[0, 6, 6, 0]} barSize={20} animationDuration={700}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={visaColor(entry.name)} />
+              ))}
+            </Bar>
+          </BarChart>
+        );
+      case "byIndustry":
+        return (
+          <BarChart data={byIndustry} margin={{ left: 0, right: 12, top: 8, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e6eefc" />
+            <XAxis dataKey="name" tick={{ fontSize: 9 }} angle={-25} textAnchor="end" height={50} interval={0} />
+            <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={30} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend verticalAlign="top" height={30} iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+            <Bar dataKey="yes" stackId="a" fill={GREEN} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="case" stackId="a" fill={AMBER} />
+            <Bar dataKey="no" stackId="a" fill={PINK} radius={[0, 0, 4, 4]} />
+          </BarChart>
+        );
+      case "bySalary":
+        return (
+          <BarChart data={bySalary} margin={{ left: 0, right: 12, top: 8, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e6eefc" />
+            <XAxis dataKey="name" tick={{ fontSize: 9 }} angle={-25} textAnchor="end" height={50} interval={0} />
+            <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={30} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend verticalAlign="top" height={30} iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+            <Bar dataKey="yes" fill={GREEN} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="case" fill={AMBER} />
+            <Bar dataKey="no" fill={PINK} radius={[0, 0, 4, 4]} />
+          </BarChart>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <Card
@@ -105,67 +275,25 @@ function VisaCard({ data, span, delay = 0 }) {
     >
       <div className="flex items-center justify-between px-5 pt-5 pb-2">
         <Text variant="small" className="font-bold tracking-tight text-ink">
-          Visa sponsorship
+          Visa Sponsorship Analysis
         </Text>
-        <span className="text-[10px] font-semibold text-slate">{total} roles</span>
+        <div className="flex items-center gap-1 rounded-full bg-blue-50/80 p-0.5">
+          <button
+            onClick={() => setView("distribution")}
+            className={cx(
+              "px-2 py-1 rounded-full text-[9px] font-semibold transition-all",
+              view === "distribution" ? "bg-blue-500 text-white shadow-sm" : "text-slate hover:text-ink"
+            )}
+          >
+            Distribution
+          </button>
+        </div>
       </div>
-      <CardBody className="!pt-2 !pb-4 flex items-center gap-4" style={{ height: 260 }}>
-        <div className="h-full w-[45%] shrink-0">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadialBarChart
-              innerRadius="28%"
-              outerRadius="100%"
-              barSize={9}
-              data={ringData}
-              startAngle={90}
-              endAngle={-270}
-            >
-              <RadialBar background={{ fill: "#eef4ff" }} dataKey="pct" cornerRadius={6} animationDuration={900}>
-                {ringData.map((d, i) => (
-                  <Cell
-                    key={d.name}
-                    fill={d.fill}
-                    fillOpacity={hovered === null || hovered === i ? 1 : 0.2}
-                    style={{ transition: "fill-opacity 200ms ease" }}
-                  />
-                ))}
-              </RadialBar>
-              <Tooltip content={<CustomTooltip />} />
-            </RadialBarChart>
-          </ResponsiveContainer>
-        </div>
 
-        <div className="flex-1 space-y-2 pr-1">
-          {ringData.map((d, i) => (
-            <div
-              key={d.name}
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
-              className="cursor-pointer rounded-lg px-2.5 py-2 transition-colors duration-200"
-              style={{ background: hovered === i ? `${d.fill}14` : "transparent" }}
-            >
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="flex items-center gap-1.5 font-medium text-ink">
-                  <span className="inline-block h-2 w-2 rounded-full" style={{ background: d.fill }} />
-                  {d.name}
-                </span>
-                <span className="font-semibold text-slate">
-                  {d.value} <span className="text-[10px] font-normal">({d.pct}%)</span>
-                </span>
-              </div>
-              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-blue-50">
-                <div
-                  className="h-full rounded-full transition-all duration-700 ease-out"
-                  style={{
-                    width: hovered === null || hovered === i ? `${d.pct}%` : "6%",
-                    background: d.fill,
-                    opacity: hovered === null || hovered === i ? 1 : 0.35,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+      <CardBody className="!pt-1 !pb-4" style={{ height: 200 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          {renderChart()}
+        </ResponsiveContainer>
       </CardBody>
     </Card>
   );
@@ -224,9 +352,6 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
-// A soft, airy background: a near-white base with a light blue dot grid,
-// and three gentle blobs in light blue, light pink, and light amber so the
-// page feels calm rather than saturated.
 function DashboardBackground() {
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#F7FAFF]">
@@ -278,8 +403,6 @@ function DashboardBackground() {
   );
 }
 
-// Same type system as Home: Plus Jakarta Sans for headings, Inter for body,
-// IBM Plex Mono reserved for stat figures. Scoped to .app-shell.
 function PageTypography() {
   return (
     <style>{`
@@ -316,7 +439,7 @@ export default function Jobs() {
   const [jobType, setJobType] = useState("All");
   const [visa, setVisa] = useState("All");
   const [remote, setRemote] = useState("All");
-  const [typeView, setTypeView] = useState("work"); // "work" | "job" — toggled by the two buttons
+  const [typeView, setTypeView] = useState("work");
 
   const jobs = data.Jobs;
   const statuses = ["All", ...new Set(jobs.map((j) => j.Status))];
@@ -333,7 +456,7 @@ export default function Jobs() {
           (visa === "All" || j.VisaSponsorship === visa) &&
           (remote === "All" || j.RemoteType === remote)
       )
-      .sort((a, b) => new Date(b.PostedDate) - new Date(a.PostedDate)); // newest first, by default
+      .sort((a, b) => new Date(b.PostedDate) - new Date(a.PostedDate));
   }, [jobs, status, jobType, visa, remote]);
 
   const trend = useMemo(() => {
@@ -427,7 +550,6 @@ export default function Jobs() {
       <PageTypography />
       <DashboardBackground />
 
-      {/* Local motion + fade-up keyframes, scoped to this page only */}
       <style>{`
         @keyframes jobsFadeUp {
           from { opacity: 0; transform: translateY(10px); }
@@ -497,11 +619,11 @@ export default function Jobs() {
               </AreaChart>
             </ChartCard>
 
-            <VisaCard data={byVisa} span="col-span-12 lg:col-span-3" delay={280} />
+            <VisaStatistics data={byVisa} jobs={jobs} span="col-span-12 lg:col-span-4" delay={280} />
 
             <ChartCard
               title={typeView === "work" ? "Work type" : "Job type"}
-              span="col-span-12 lg:col-span-4"
+              span="col-span-12 lg:col-span-3"
               height={260}
               delay={340}
               headerExtra={
@@ -513,7 +635,7 @@ export default function Jobs() {
                       typeView === "work" ? "bg-blue-500 text-white shadow-sm" : "text-slate hover:text-ink"
                     )}
                   >
-                    Work type
+                    Work
                   </button>
                   <button
                     onClick={() => setTypeView("job")}
@@ -522,7 +644,7 @@ export default function Jobs() {
                       typeView === "job" ? "bg-blue-500 text-white shadow-sm" : "text-slate hover:text-ink"
                     )}
                   >
-                    Job type
+                    Job
                   </button>
                 </div>
               }
@@ -543,7 +665,7 @@ export default function Jobs() {
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
-                <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: 10 }} />
               </PieChart>
             </ChartCard>
           </div>

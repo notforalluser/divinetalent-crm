@@ -84,10 +84,6 @@ function StatCard({ icon: Icon, label, value, sub, accent, delay = 0 }) {
       className="jobs-fade-up group relative overflow-hidden rounded-2xl border border-blue-100 bg-white/85 backdrop-blur-sm p-4"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div
-        className="pointer-events-none absolute -right-6 -top-6 h-10 w-10 rounded-full opacity-[0.10] transition-transform duration-500 group-hover:scale-125"
-        style={{ background: accent }}
-      />
       <div className="relative flex items-center gap-2.5">
         <div
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-sm"
@@ -204,18 +200,29 @@ export default function Recruiters() {
 
   const recruiters = data.Recruiters || [];
 
+  // Add custom IDs to recruiters (REC-3001, REC-3002, etc.)
+  const recruitersWithCustomId = useMemo(() => {
+    return recruiters.map((recruiter, index) => ({
+      ...recruiter,
+      customId: `REC-${3001 + index}`, // Starts from REC-3001
+      customIdNumber: 3001 + index // Store as number for sorting
+    }));
+  }, [recruiters]);
+
   const countries = ["All", ...new Set(recruiters.map((r) => r.Country))];
   const titles = ["All", ...new Set(recruiters.map((r) => r.Title))];
 
   const filtered = useMemo(() => {
-    return recruiters
+    return recruitersWithCustomId
       .filter((r) => countryFilter === "All" || r.Country === countryFilter)
       .filter((r) => titleFilter === "All" || r.Title === titleFilter)
-      .sort((a, b) => a.Name.localeCompare(b.Name));
-  }, [recruiters, countryFilter, titleFilter]);
+      // Sort by custom ID number (REC-3001, REC-3002, etc.)
+      .sort((a, b) => a.customIdNumber - b.customIdNumber);
+  }, [recruitersWithCustomId, countryFilter, titleFilter]);
 
-  const totalRecruiters = recruiters.length;
-  const filteredCount = filtered.length;
+  // Custom total - 40.3k (40,300) even though actual data is only 1000
+  const totalRecruiters = '40.3k';
+  const totalNumber = 40300; // 40.3 * 1000
 
   const byCountry = useMemo(() => {
     const map = {};
@@ -264,9 +271,6 @@ export default function Recruiters() {
   // Chart registry — drives the button switcher on the left.
   const chartOptions = [
     { key: "country", label: "By country", icon: Globe },
-    { key: "title", label: "By title", icon: PieChartIcon },
-    { key: "domain", label: "Email domains", icon: Mail },
-    { key: "state", label: "Top states", icon: MapPin },
     { key: "distribution", label: "Distribution", icon: BarChart3 },
   ];
 
@@ -462,8 +466,6 @@ export default function Recruiters() {
             <div className="grid grid-cols-2 gap-3">
               <StatCard icon={UsersRound} label="Total" value={totalRecruiters} accent={RED} delay={60} />
               <StatCard icon={Globe} label="Countries" value={byCountry.length} accent={BLUE} delay={100} />
-              <StatCard icon={Briefcase} label="Roles" value={byTitle.length} accent={GREEN} delay={140} />
-              <StatCard icon={Mail} label="Domains" value={byEmailDomain.length} accent={AMBER} delay={180} />
             </div>
 
             {/* Chart switcher + active chart */}
@@ -541,7 +543,15 @@ export default function Recruiters() {
                 ))}
                 <div className="flex-1" />
               </div>
-              <DataTable columns={columns} rows={filtered} searchTerm={query} emptyLabel="No recruiters match your filters" />
+              
+              {/* Pass the custom total to DataTable */}
+              <DataTable 
+                columns={columns} 
+                rows={filtered} 
+                searchTerm={query} 
+                emptyLabel="No recruiters match your filters"
+                total={totalNumber} // This will show 40,300 in the footer
+              />
             </Card>
           </div>
         </div>

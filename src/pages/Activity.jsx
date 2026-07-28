@@ -35,10 +35,6 @@ function StatCard({ icon: Icon, label, value, sub, accent, delay = 0 }) {
       className="jobs-fade-up group relative overflow-hidden rounded-2xl border border-blue-100 bg-white/85 backdrop-blur-sm p-5"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div
-        className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-[0.10] transition-transform duration-500 group-hover:scale-125"
-        style={{ background: accent }}
-      />
       <div className="relative flex items-center gap-3">
         <div
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm"

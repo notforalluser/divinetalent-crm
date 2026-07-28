@@ -6,7 +6,13 @@ function cx(...args) {
   return args.filter(Boolean).join(" ");
 }
 
-export default function DataTable({ columns, rows, searchTerm = "", emptyLabel = "No records found" }) {
+export default function DataTable({ 
+  columns, 
+  rows, 
+  searchTerm = "", 
+  emptyLabel = "No records found",
+  total // Add this prop for custom total
+}) {
   const { settings } = useSettings();
   const [sort, setSort] = useState({ key: null, dir: "asc" });
   const [page, setPage] = useState(1);
@@ -32,8 +38,14 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
     return copy;
   }, [filtered, sort]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  // Use custom total for pagination if provided
+  const displayTotal = total !== undefined ? total : sorted.length;
+  
+  // Calculate total pages based on custom total
+  const totalPages = Math.max(1, Math.ceil(displayTotal / pageSize));
   const currentPage = Math.min(page, totalPages);
+  
+  // Still use actual sorted data for displaying rows
   const pageRows = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const startIndex = (currentPage - 1) * pageSize;
 
@@ -42,10 +54,13 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
     setSort((prev) => (prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
   }
 
+  // Handle page navigation with custom total
+  const goToPage = (newPage) => {
+    setPage(Math.max(1, Math.min(totalPages, newPage)));
+  };
+
   return (
     <div className="flex flex-col rounded-xs overflow-hidden">
-      {/* Small, colored, interactive scrollbar for the table body — matches
-          the blue/pink dashboard palette instead of a flat crimson bar. */}
       <style>{`
         .dt-scroll::-webkit-scrollbar { height: 6px; }
         .dt-scroll::-webkit-scrollbar-track { background: transparent; }
@@ -136,11 +151,11 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
           <span>
             Showing <span className="font-semibold text-ink">{startIndex + 1}</span>-
             <span className="font-semibold text-ink">{Math.min(currentPage * pageSize, sorted.length)}</span> of{" "}
-            <span className="font-semibold text-ink">{sorted.length}</span>
+            <span className="font-semibold text-ink">{displayTotal}</span>
           </span>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => goToPage(currentPage - 1)}
               disabled={currentPage === 1}
               className="p-1.5 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 transition-colors"
             >
@@ -150,7 +165,7 @@ export default function DataTable({ columns, rows, searchTerm = "", emptyLabel =
               {currentPage} / {totalPages}
             </span>
             <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => goToPage(currentPage + 1)}
               disabled={currentPage === totalPages}
               className="p-1.5 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 transition-colors"
             >

@@ -22,6 +22,7 @@ import Reports from "./pages/Reports";
 import Recruiters from "./pages/Recruiters";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import Plans from "./pages/Plans";
 
 export default function App() {
   return (
@@ -47,11 +48,12 @@ export default function App() {
                 <Route path="/candidates" element={<Candidates />} />
                 <Route path="/candidates/:candidateId" element={<CandidateDetail />} />
                 <Route path="/interviews" element={<InterviewSchedule />} />
+                <Route path="/plans" element={<Plans />} />
                 <Route path="/path" element={<Path />} />
-                <Route path="/saved" element={<Saved />} />
+                <Route path="/recruiters" element={<Recruiters />} />
                 <Route path="/activity" element={<Activity />} />
                 <Route path="/reports" element={<Reports />} />
-                <Route path="/recruiters" element={<Recruiters />} />
+                <Route path="/saved" element={<Saved />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />

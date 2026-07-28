@@ -599,6 +599,15 @@ export default function CareerPath() {
   const activeEdges = new Set(chain ? chain.edges : []);
   const locked = anchorId !== null;
 
+  // Bypass edges: any edge whose both endpoints already sit on the active
+  // chain, but which is not itself one of the chain's own edges — e.g.
+  // OPT -> H-1B directly (skipping STEM OPT), or H-4 EAD -> PERM directly
+  // (skipping H-1B). These render as animated amber/yellow shortcut lines.
+  const bypassEdges = chain
+    ? EDGES.filter((e) => activeNodes.has(e.from) && activeNodes.has(e.to) && !activeEdges.has(e.id))
+    : [];
+  const bypassEdgeIds = new Set(bypassEdges.map((e) => e.id));
+
   // Close the popup on Escape.
   useEffect(() => {
     if (!viewId) return;
@@ -611,11 +620,12 @@ export default function CareerPath() {
 
   const handleSelect = (id) => {
     if (!locked) {
+      // First click just locks the path onto the map — no popup yet.
       setAnchorId(id);
-      setViewId(id);
       return;
     }
     if (activeNodes.has(id)) {
+      // Second (or later) click on a stage already on the active path opens its popup.
       setViewId(id);
     }
     // clicks on locked-out stages are simply ignored
@@ -676,32 +686,39 @@ export default function CareerPath() {
                 <marker id="arrow-active" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
                   <path d="M0,0 L10,5 L0,10 z" fill="#10b981" />
                 </marker>
+                <marker id="arrow-bypass" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" fill="#f59e0b" />
+                </marker>
               </defs>
 
               {EDGES.map((e) => {
                 const isActive = activeEdges.has(e.id);
+                const isBypass = bypassEdgeIds.has(e.id);
+                // All path lines stay visible (dimmed when not on the active
+                // route) — only the text annotations get hidden below.
+                const fadedOut = locked && !isActive && !isBypass;
                 return (
-                  <g key={e.id}>
-                    {isActive && (
+                  <g key={e.id} opacity={fadedOut ? 0.25 : 1} style={{ transition: "opacity .35s ease" }}>
+                    {(isActive || isBypass) && (
                       <path
                         d={e.path}
                         fill="none"
-                        stroke="#10b981"
+                        stroke={isBypass ? "#f59e0b" : "#10b981"}
                         strokeWidth={10}
                         strokeLinecap="round"
-                        opacity={0.35}
+                        opacity={0.3}
                         className="glow-path"
                       />
                     )}
                     <path
                       d={e.path}
                       fill="none"
-                      stroke={isActive ? "#10b981" : "#cbd5e1"}
-                      strokeWidth={isActive ? 3.5 : 2}
-                      strokeDasharray={e.dashed ? "2 7" : isActive ? "10 8" : "0"}
+                      stroke={isBypass ? "#f59e0b" : isActive ? "#10b981" : "#cbd5e1"}
+                      strokeWidth={isBypass ? 3 : isActive ? 3.5 : 2}
+                      strokeDasharray={isBypass ? "5 6" : e.dashed ? "2 7" : isActive ? "10 8" : "0"}
                       strokeLinecap="round"
-                      markerEnd={`url(#${isActive ? "arrow-active" : "arrow-dim"})`}
-                      className={isActive ? "flow-path" : ""}
+                      markerEnd={`url(#${isBypass ? "arrow-bypass" : isActive ? "arrow-active" : "arrow-dim"})`}
+                      className={isActive || isBypass ? "flow-path" : ""}
                       style={{ transition: "stroke .35s ease, stroke-width .35s ease" }}
                     />
                   </g>
@@ -711,14 +728,15 @@ export default function CareerPath() {
 
             {/* Above / below annotations — rendered as pill badges with their own
                 background so they stay legible no matter what line or node sits
-                behind them. Dulled to gray whenever their edge isn't part of the
-                currently active (green) path. Every label group now stretches to
-                a fixed-width lane and left-aligns its text, so pills of different
-                lengths still line up cleanly instead of drifting to different
-                widths under the same edge. */}
-            {EDGES.map((e) => (
-              <EdgeLabels key={e.id + "-labels"} edge={e} active={activeEdges.has(e.id)} />
-            ))}
+                behind them. Once a path is locked, only labels belonging to the
+                active route or a valid bypass shortcut are shown — everything
+                else is hidden entirely for a clean, focused view. */}
+            {EDGES.map((e) => {
+              const isActive = activeEdges.has(e.id);
+              const isBypass = bypassEdgeIds.has(e.id);
+              if (locked && !isActive && !isBypass) return null;
+              return <EdgeLabels key={e.id + "-labels"} edge={e} active={isActive} bypass={isBypass} />;
+            })}
 
             {/* Nodes */}
             {Object.values(NODES).map((n) => {
@@ -739,7 +757,7 @@ export default function CareerPath() {
           </div>
         </div>
 
-        {/* Stage details now open as a popup, not an inline panel below the map */}
+        {/* Stage details open as a popup, only once a stage is clicked a second time */}
         {viewId && (
           <div className="modal-backdrop-in" style={styles.modalOverlay} onClick={() => setViewId(null)}>
             <div className="modal-panel-in" style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
@@ -766,12 +784,13 @@ export default function CareerPath() {
    ------------------------------------------------------------------- */
 
 function LabelPill({ text, kind, active }) {
-  // kind: "req" | "provide"
+  // kind: "req" | "provide" | "bypass"
   const isReq = kind === "req";
-  const color = active ? (isReq ? REQ_COLOR : PROVIDE_COLOR) : DIM_COLOR;
-  const bg = active ? (isReq ? REQ_BG : PROVIDE_BG) : DIM_BG;
-  const border = active ? (isReq ? REQ_BORDER : PROVIDE_BORDER) : "#e2e8f0";
-  const Icon = isReq ? AlertTriangle : CheckCircle2;
+  const isBypass = kind === "bypass";
+  const color = isBypass ? BYPASS_COLOR : active ? (isReq ? REQ_COLOR : PROVIDE_COLOR) : DIM_COLOR;
+  const bg = isBypass ? BYPASS_BG : active ? (isReq ? REQ_BG : PROVIDE_BG) : DIM_BG;
+  const border = isBypass ? BYPASS_BORDER : active ? (isReq ? REQ_BORDER : PROVIDE_BORDER) : "#e2e8f0";
+  const Icon = isBypass ? Repeat : isReq ? AlertTriangle : CheckCircle2;
   return (
     <div
       style={{
@@ -789,7 +808,7 @@ function LabelPill({ text, kind, active }) {
         borderRadius: 7,
         padding: "5px 9px",
         textAlign: "left",
-        boxShadow: active ? "0 1px 2px rgba(15,23,42,0.05)" : "none",
+        boxShadow: active || isBypass ? "0 1px 2px rgba(15,23,42,0.05)" : "none",
         transition: "background .35s ease, color .35s ease, border-color .35s ease",
       }}
     >
@@ -799,10 +818,12 @@ function LabelPill({ text, kind, active }) {
   );
 }
 
-function EdgeLabels({ edge, active }) {
+function EdgeLabels({ edge, active, bypass }) {
   const above = edge.above || [];
   const below = edge.below || [];
-  const opacity = active ? 1 : 0.65;
+  const opacity = active || bypass ? 1 : 0.65;
+  const reqKind = bypass ? "bypass" : "req";
+  const provideKind = bypass ? "bypass" : "provide";
 
   if (edge.sideLabelAbove || edge.sideLabelBelow) {
     const sx = edge.sideLabelX ?? edge.labelX ?? 1000;
@@ -820,8 +841,8 @@ function EdgeLabels({ edge, active }) {
           zIndex: 2,
         }}
       >
-        {edge.sideLabelAbove && <LabelPill text={edge.sideLabelAbove} kind="req" active={active} />}
-        {edge.sideLabelBelow && <LabelPill text={edge.sideLabelBelow} kind="provide" active={active} />}
+        {edge.sideLabelAbove && <LabelPill text={edge.sideLabelAbove} kind={reqKind} active={active} />}
+        {edge.sideLabelBelow && <LabelPill text={edge.sideLabelBelow} kind={provideKind} active={active} />}
       </div>
     );
   }
@@ -847,7 +868,7 @@ function EdgeLabels({ edge, active }) {
           }}
         >
           {above.map((t, i) => (
-            <LabelPill key={i} text={t} kind="req" active={active} />
+            <LabelPill key={i} text={t} kind={reqKind} active={active} />
           ))}
         </div>
       )}
@@ -867,7 +888,7 @@ function EdgeLabels({ edge, active }) {
           }}
         >
           {below.map((t, i) => (
-            <LabelPill key={i} text={t} kind="provide" active={active} />
+            <LabelPill key={i} text={t} kind={provideKind} active={active} />
           ))}
         </div>
       )}
@@ -1047,6 +1068,9 @@ const REQ_BORDER = "#fecaca";
 const PROVIDE_COLOR = "#3730a3";
 const PROVIDE_BG = "#eef2ff";
 const PROVIDE_BORDER = "#c7d2fe";
+const BYPASS_COLOR = "#b45309";
+const BYPASS_BG = "#fffbeb";
+const BYPASS_BORDER = "#fde68a";
 const DIM_COLOR = "#94a3b8"; // muted slate — used for any annotation whose edge is not on the active path
 const DIM_BG = "#f8fafc";
 
@@ -1071,8 +1095,12 @@ const CSS_KEYFRAMES = `
 
 const styles = {
   page: {
-    height: "100vh",
-    width: "100%",
+    height: "calc(100vh - 5px)",
+    width: "calc(100% - 5px)",
+    marginTop: 5,
+    marginLeft: 5,
+    marginRight: 0,
+    marginBottom: 0,
     background: "#f8fafc",
     fontFamily: "'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif",
     overflowY: "auto",
@@ -1085,7 +1113,9 @@ const styles = {
   heroWrap: {
     position: "relative",
     overflow: "hidden",
-    margin: "0 auto 20px",
+    width: "100%",
+    margin: "0 0 20px",
+    boxSizing: "border-box",
     border: "1px solid #e2e8f0",
     padding: "8px 15px",
     boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
@@ -1166,8 +1196,9 @@ const styles = {
     transition: "all .2s ease",
   },
   scrollWrap: {
-    maxWidth: 1200,
-    margin: "0 auto",
+    width: "100%",
+    boxSizing: "border-box",
+    margin: 0,
     overflowX: "auto",
     overflowY: "hidden",
     border: "1px solid #e2e8f0",
