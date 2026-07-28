@@ -31,34 +31,30 @@ export default function App() {
         <AuthProvider>
           <DataProvider>
             <SavedProvider>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <DashboardLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route path="/" element={<Home />} />
-                <Route path="/jobs" element={<Jobs />} />
-                <Route path="/jobs/:jobId" element={<JobDetail />} />
-                <Route path="/ai-match" element={<AIMatch />} />
-                <Route path="/special-search" element={<SpecialSearch />} />
-                <Route path="/candidates" element={<Candidates />} />
-                <Route path="/candidates/:candidateId" element={<CandidateDetail />} />
-                <Route path="/interviews" element={<InterviewSchedule />} />
-                <Route path="/plans" element={<Plans />} />
-                <Route path="/path" element={<Path />} />
-                <Route path="/recruiters" element={<Recruiters />} />
-                <Route path="/activity" element={<Activity />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/saved" element={<Saved />} />
-                <Route path="/settings" element={<Settings />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </SavedProvider>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<DashboardLayout />}>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/jobs" element={<Jobs />} />
+                    <Route path="/jobs/:jobId" element={<JobDetail />} />
+                    <Route path="/ai-match" element={<AIMatch />} />
+                    <Route path="/special-search" element={<SpecialSearch />} />
+                    <Route path="/candidates" element={<Candidates />} />
+                    <Route path="/candidates/:candidateId" element={<CandidateDetail />} />
+                    <Route path="/interviews" element={<InterviewSchedule />} />
+                    <Route path="/plans" element={<Plans />} />
+                    <Route path="/path" element={<Path />} />
+                    <Route path="/recruiters" element={<Recruiters />} />
+                    <Route path="/activity" element={<Activity />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/saved" element={<Saved />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Route>
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </SavedProvider>
           </DataProvider>
         </AuthProvider>
       </SettingsProvider>

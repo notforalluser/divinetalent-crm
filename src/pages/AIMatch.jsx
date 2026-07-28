@@ -830,7 +830,7 @@ export default function AIMatch() {
     [profile]
   );
 
-   const matchedJobs = useMemo(() => {
+  const matchedJobs = useMemo(() => {
     if (!profile || !candidateRoles.length) return [];
     const raw = findMatchingActiveJobs(data.Jobs, candidateRoles, undefined, candidateDomainSources, candidateSkillsText);
     const assigned = assignCompanyEligibility(raw, eligible);

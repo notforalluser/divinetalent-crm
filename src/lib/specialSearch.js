@@ -6,6 +6,14 @@
 // companies whose job postings offer that sponsorship, AND companies where
 // candidates have actually been placed under that visa -- three different
 // sheets, one query.
+//
+// Matching strategy for roles/companies is strict-first, relevant-fallback:
+//   1. exact match
+//   2. substring match (either direction)
+//   3. word-overlap match -- only used if 1 & 2 find nothing, and returns
+//      every role/company that shares a significant word with the query
+//      (so "software developer" surfaces "Full Stack Developer",
+//      "Java Developer", "React Developer", etc. instead of nothing).
 // ============================================================================
 
 // Canonical visa terms and every alias a person might type for them.
@@ -37,19 +45,54 @@ function detectVisa(query) {
   return VISA_ALIASES.find((v) => v.match.some((m) => q.includes(m))) || null;
 }
 
-function detectJobRole(query, jobRoles) {
-  const q = query.toLowerCase().trim();
-  // exact/substring match against known role titles, longest match wins
-  const hits = jobRoles.filter((r) => q.includes(r.toLowerCase()) || r.toLowerCase().includes(q));
-  if (hits.length === 0) return null;
-  return hits.sort((a, b) => b.length - a.length)[0];
+// Normalize for comparison: lowercase, trim, collapse whitespace.
+function normalize(str) {
+  return (str || "").toLowerCase().trim().replace(/\s+/g, " ");
 }
 
-function detectCompany(query, companies) {
-  const q = query.toLowerCase().trim();
-  const hits = companies.filter((c) => q.includes(c.toLowerCase()) || c.toLowerCase().includes(q));
-  if (hits.length === 0) return null;
-  return hits.sort((a, b) => b.length - a.length)[0];
+// Word tokens for overlap scoring, ignoring very short/noisy words like "a", "of".
+function tokens(str) {
+  return normalize(str)
+    .split(" ")
+    .filter((t) => t.length > 2);
+}
+
+/**
+ * Finds every value in `values` that plausibly matches `query`.
+ * Strict-first: exact match, then substring match (either direction).
+ * Only if BOTH of those come up empty does it fall back to word-overlap
+ * matching, returning every value tied for the highest overlap score.
+ * This guarantees a query like "software developer" -- which matches no
+ * exact role -- still surfaces every "...Developer" role instead of nothing.
+ */
+function matchValues(query, values) {
+  const q = normalize(query);
+  if (!q) return [];
+
+  const exact = values.filter((v) => normalize(v) === q);
+  if (exact.length) return exact;
+
+  const substr = values.filter((v) => {
+    const nv = normalize(v);
+    return q.includes(nv) || nv.includes(q);
+  });
+  if (substr.length) return substr;
+
+  const qTokens = tokens(q);
+  if (!qTokens.length) return [];
+
+  const scored = values
+    .map((v) => {
+      const vTokens = tokens(v);
+      const overlap = qTokens.filter((t) => vTokens.includes(t)).length;
+      return { value: v, overlap };
+    })
+    .filter((s) => s.overlap > 0)
+    .sort((a, b) => b.overlap - a.overlap);
+
+  if (!scored.length) return [];
+  const topScore = scored[0].overlap;
+  return scored.filter((s) => s.overlap === topScore).map((s) => s.value);
 }
 
 function groupCount(items, keyFn) {
@@ -76,8 +119,8 @@ export function runSpecialSearch(query, data) {
   const allCompanies = [...new Set(data.Jobs.map((j) => j.Company).filter(Boolean))];
 
   const visa = detectVisa(trimmed);
-  const role = !visa ? detectJobRole(trimmed, allRoles) : null;
-  const company = !visa && !role ? detectCompany(trimmed, allCompanies) : null;
+  const matchedRoles = !visa ? matchValues(trimmed, allRoles) : [];
+  const matchedCompanies = !visa && !matchedRoles.length ? matchValues(trimmed, allCompanies) : [];
 
   if (visa) {
     const sponsorshipValues = VISA_TO_JOB_SPONSORSHIP[visa.canonical] || [];
@@ -98,16 +141,21 @@ export function runSpecialSearch(query, data) {
     };
   }
 
-  if (role) {
-    const jobsForRole = data.Jobs.filter((j) => j.Title === role);
-    const placedInRole = data.Candidates.filter((c) => c.Status === "Placed" && c.PlacedJobTitle === role);
+  if (matchedRoles.length) {
+    const jobsForRole = data.Jobs.filter((j) => matchedRoles.includes(j.Title));
+    const placedInRole = data.Candidates.filter(
+      (c) => c.Status === "Placed" && matchedRoles.includes(c.PlacedJobTitle)
+    );
     const marketingInRole = data.Candidates.filter(
-      (c) => c.TargetRole === role && (c.Status === "Active" || c.Status === "In Marketing")
+      (c) => matchedRoles.includes(c.TargetRole) && (c.Status === "Active" || c.Status === "In Marketing")
     );
 
     return {
       type: "role",
-      label: role,
+      // Show the exact role name when there's one clean match; otherwise
+      // show what the person typed, since we're covering several roles.
+      label: matchedRoles.length === 1 ? matchedRoles[0] : trimmed,
+      matchedRoles,
       query: trimmed,
       jobsForRole,
       placedInRole,
@@ -117,14 +165,17 @@ export function runSpecialSearch(query, data) {
     };
   }
 
-  if (company) {
-    const jobsAtCompany = data.Jobs.filter((j) => j.Company === company);
-    const placedAtCompany = data.Candidates.filter((c) => c.Status === "Placed" && c.PlacedCompany === company);
-    const interviewsAtCompany = data.Interviews.filter((i) => i.ClientName === company);
+  if (matchedCompanies.length) {
+    const jobsAtCompany = data.Jobs.filter((j) => matchedCompanies.includes(j.Company));
+    const placedAtCompany = data.Candidates.filter(
+      (c) => c.Status === "Placed" && matchedCompanies.includes(c.PlacedCompany)
+    );
+    const interviewsAtCompany = data.Interviews.filter((i) => matchedCompanies.includes(i.ClientName));
 
     return {
       type: "company",
-      label: company,
+      label: matchedCompanies.length === 1 ? matchedCompanies[0] : trimmed,
+      matchedCompanies,
       query: trimmed,
       jobsAtCompany,
       placedAtCompany,
@@ -134,14 +185,17 @@ export function runSpecialSearch(query, data) {
     };
   }
 
-  // Fallback: general fuzzy match across candidates / jobs / recruiters by name/title/skill/location.
+  // Fallback: general fuzzy match across candidates / jobs / recruiters by
+  // name/title/skill/location/role -- this only runs if nothing above matched.
   const q = trimmed.toLowerCase();
   const candidateMatches = data.Candidates.filter(
     (c) =>
       c.Name.toLowerCase().includes(q) ||
       (c.Technology || "").toLowerCase().includes(q) ||
       (c.Skills || "").toLowerCase().includes(q) ||
-      (c.CurrentLocation || "").toLowerCase().includes(q)
+      (c.CurrentLocation || "").toLowerCase().includes(q) ||
+      (c.TargetRole || "").toLowerCase().includes(q) ||
+      (c.PlacedJobTitle || "").toLowerCase().includes(q)
   ).slice(0, 25);
   const jobMatches = data.Jobs.filter(
     (j) =>

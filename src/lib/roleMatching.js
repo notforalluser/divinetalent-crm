@@ -61,10 +61,11 @@ const DOMAINS = {
 // NOT see "Network Engineer", "Site Reliability Engineer", "AI/ML
 // Engineer", or "Salesforce Developer" unless their resume actually
 // mentions networking, SRE/devops, AI/ML, or Salesforce respectively.
-// There is NO fallback bypass for these — shared generic tech tokens
-// (python, sql, aws, etc.) are NOT sufficient evidence on their own,
-// because that was previously letting AI/ML Engineer, Network Engineer,
-// etc. leak through for candidates with none of that background.
+// There is intentionally NO fallback bypass for these — sharing a common
+// generic tech token (python, sql, aws, etc.) with the job posting is NOT
+// treated as sufficient evidence on its own; that bypass is what
+// previously let AI/ML Engineer, Network Engineer, etc. leak through for
+// candidates with no such background.
 const SPECIALTY_TAGS = {
   network: ["network engineer", "network administrator", "network security", "network"],
   systems: ["systems engineer", "system administrator", "sysadmin"],
@@ -76,7 +77,7 @@ const SPECIALTY_TAGS = {
   data: ["data engineer", "data scientist", "data analyst", "business intelligence", "data science"],
   salesforce: ["salesforce"],
   sap: ["sap consultant", "sap developer", "sap"],
-  security: ["security engineer", "cybersecurity", "penetration tester", "information security"],
+  security: ["security engineer", "cybersecurity", "penetration tester", "information security", "security"],
 };
 
 const TECH_TOKENS = [
@@ -252,7 +253,7 @@ export function scoreJobRelevance(job, roles, domainSources = roles, skillsText 
   if (titleScore >= 100) return 100;
   if (titleScore >= 80) return hasTechOverlap ? 95 : 80;
 
-  // --- Specialty guard ---
+  // --- Specialty guard (both directions) ---
   // A job whose title belongs to a specific discipline (network, cloud,
   // devops/SRE, QA, mobile, AI/ML, data, Salesforce, SAP, security) is
   // ONLY eligible if the candidate's own roles/headline or skills show
@@ -260,11 +261,23 @@ export function scoreJobRelevance(job, roles, domainSources = roles, skillsText 
   // sharing a common token like "python" or "sql" with the job posting is
   // NOT enough evidence the candidate actually works in that discipline.
   const jobSpecialty = detectSpecialtyTags(title);
+  const candidateSpecialtyText = `${(domainSources || []).join(" ")} ${skillsText || ""}`;
+  const candidateSpecialty = detectSpecialtyTags(candidateSpecialtyText);
+
   if (jobSpecialty.size > 0) {
-    const candidateSpecialtyText = `${(domainSources || []).join(" ")} ${skillsText || ""}`;
-    const candidateSpecialty = detectSpecialtyTags(candidateSpecialtyText);
     const specialtyOverlap = [...jobSpecialty].some((t) => candidateSpecialty.has(t));
     if (!specialtyOverlap) return 0;
+  } else if (candidateSpecialty.size > 0) {
+    // The job itself is generic (no specific discipline detected in its
+    // title, e.g. "Java Developer", "React Developer"), but the
+    // candidate IS a specialist (e.g. their title is "Network Security
+    // Engineer", which also contains the bare word "Engineer" and would
+    // otherwise fall into the broad Software Engineering domain bucket
+    // below). A specialist isn't a generalist — don't show them plain
+    // dev/data roles just because their title happens to end in
+    // "Engineer" too, unless the job's own requirements show real
+    // overlapping tech with their resume.
+    if (!hasTechOverlap) return 0;
   }
 
   // --- Domain-fallback path (generic dev/data roles only) ---
