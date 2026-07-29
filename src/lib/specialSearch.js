@@ -21,11 +21,12 @@ const VISA_TO_JOB_SPONSORSHIP = {
   "L2-EAD": ["Any / Open"],
 };
 
-// Broad job-family categories. A query that mentions the category name (or any
-// of its synonyms) pulls in every job / placement / marketing candidate whose
-// title or target role is a plausible member of that family -- even if the
-// exact wording differs across the Candidates and Jobs sheets (e.g.
-// "Financial Analyst" vs "Finance Manager" vs "Accountant").
+// Broad job-family categories for terms whose word FORM varies across the
+// sheets in a way plain substring matching can't catch (e.g. "Finance" the
+// noun vs. "Financial" the adjective vs. "Accountant"/"Payroll" which don't
+// share letters with "finance" at all). Keep this list for genuine synonym /
+// stemming cases only -- everything else is handled by the generic matcher
+// below, which is now broad enough that most queries never need a category.
 const ROLE_CATEGORIES = [
   {
     name: "Finance",
@@ -61,34 +62,33 @@ function tokens(str) {
     .filter((t) => t.length > 2);
 }
 
-function matchValues(query, values) {
+// Generic "is this string relevant to the query" test, used consistently
+// against Jobs.Title, Candidates.TargetRole, and Candidates.PlacedJobTitle.
+// This replaces the old approach of first shrinking the query down to a
+// handful of exact role strings pulled only from the Candidates sheet, then
+// requiring Jobs.Title to equal one of those exactly -- which is why
+// "analyst" only found jobs whose title exactly matched one of the ~5
+// canonical analyst roles that happened to appear in Candidates, even though
+// hundreds more analyst jobs existed in the Jobs sheet under other titles.
+// Matching every sheet directly against the query keeps every card/table on
+// the page (open jobs, companies hiring, placements, marketing) built from
+// the *same* underlying set, so their counts can never disagree.
+function isRelevant(str, query) {
+  const v = normalize(str);
   const q = normalize(query);
-  if (!q) return [];
-
-  const exact = values.filter((v) => normalize(v) === q);
-  if (exact.length) return exact;
-
-  const substr = values.filter((v) => {
-    const nv = normalize(v);
-    return q.includes(nv) || nv.includes(q);
-  });
-  if (substr.length) return substr;
+  if (!v || !q) return false;
+  if (v === q) return true;
+  if (v.includes(q) || q.includes(v)) return true;
 
   const qTokens = tokens(q);
-  if (!qTokens.length) return [];
-
-  const scored = values
-    .map((v) => {
-      const vTokens = tokens(v);
-      const overlap = qTokens.filter((t) => vTokens.includes(t)).length;
-      return { value: v, overlap };
-    })
-    .filter((s) => s.overlap > 0)
-    .sort((a, b) => b.overlap - a.overlap);
-
-  if (!scored.length) return [];
-  const topScore = scored[0].overlap;
-  return scored.filter((s) => s.overlap === topScore).map((s) => s.value);
+  if (!qTokens.length) return false;
+  const vTokens = tokens(v);
+  // Any shared meaningful word counts as relevant (e.g. "analyst" matches
+  // "Data Analyst", "Business Analyst", "Reporting Analyst", ...). This is
+  // intentionally inclusive -- the goal of Special Search is to surface
+  // everything plausibly related to what was typed, not just a narrow exact
+  // match.
+  return qTokens.some((t) => vTokens.includes(t));
 }
 
 function groupCount(items, keyFn) {
@@ -103,6 +103,41 @@ function groupCount(items, keyFn) {
     .sort((a, b) => b.count - a.count);
 }
 
+function buildRoleResult(label, query, matcher, data) {
+  const jobsForRole = data.Jobs.filter((j) => matcher(j.Title || ""));
+  const placedInRole = data.Candidates.filter(
+    (c) => c.Status === "Placed" && matcher(c.PlacedJobTitle || "")
+  );
+  const marketingInRole = data.Candidates.filter(
+    (c) => matcher(c.TargetRole || "") && (c.Status === "Active" || c.Status === "In Marketing")
+  );
+
+  if (!jobsForRole.length && !placedInRole.length && !marketingInRole.length) return null;
+
+  const matchedRoles = [
+    ...new Set([
+      ...jobsForRole.map((j) => j.Title),
+      ...placedInRole.map((c) => c.PlacedJobTitle),
+      ...marketingInRole.map((c) => c.TargetRole),
+    ]),
+  ].filter(Boolean);
+
+  return {
+    type: "role",
+    label: label || (matchedRoles.length === 1 ? matchedRoles[0] : query),
+    matchedRoles,
+    query,
+    jobsForRole,
+    placedInRole,
+    marketingInRole,
+    // Built from the exact same jobsForRole array shown in the table, so the
+    // "Companies hiring" count and the open-jobs table total always agree --
+    // sum(companiesHiring[*].count) === jobsForRole.length by construction.
+    companiesHiring: groupCount(jobsForRole, (j) => j.Company),
+    visaMixMarketing: groupCount(marketingInRole, (c) => c.VisaStatus),
+  };
+}
+
 /**
  * Runs a special search against the workbook data and returns a structured
  * result the page can render section-by-section.
@@ -111,12 +146,7 @@ export function runSpecialSearch(query, data) {
   const trimmed = query.trim();
   if (!trimmed) return null;
 
-  const allRoles = [...new Set(data.Candidates.map((c) => c.TargetRole).filter(Boolean))];
-  const allCompanies = [...new Set(data.Jobs.map((j) => j.Company).filter(Boolean))];
-
   const visa = detectVisa(trimmed);
-  const category = !visa ? detectCategory(trimmed) : null;
-
   if (visa) {
     const sponsorshipValues = VISA_TO_JOB_SPONSORSHIP[visa.canonical] || [];
     const candidatesOnVisa = data.Candidates.filter((c) => c.VisaStatus === visa.canonical);
@@ -136,68 +166,24 @@ export function runSpecialSearch(query, data) {
     };
   }
 
-  // Category match ("Finance", "Marketing", ...): match each sheet
-  // independently against the category's regex instead of requiring the
-  // exact same title string to appear in both Candidates and Jobs. This is
-  // what makes "Finance" surface every finance-flavored job/placement, not
-  // just the ones whose title literally contains the substring "finance".
+  // Known synonym/stemming categories first (Finance, Marketing, ...).
+  const category = detectCategory(trimmed);
   if (category) {
-    const jobsForRole = data.Jobs.filter((j) => category.regex.test(j.Title || ""));
-    const placedInRole = data.Candidates.filter(
-      (c) => c.Status === "Placed" && category.regex.test(c.PlacedJobTitle || "")
-    );
-    const marketingInRole = data.Candidates.filter(
-      (c) =>
-        category.regex.test(c.TargetRole || "") &&
-        (c.Status === "Active" || c.Status === "In Marketing")
-    );
-    const matchedRoles = [
-      ...new Set([
-        ...jobsForRole.map((j) => j.Title),
-        ...placedInRole.map((c) => c.PlacedJobTitle),
-        ...marketingInRole.map((c) => c.TargetRole),
-      ]),
-    ].filter(Boolean);
-
-    return {
-      type: "role",
-      label: category.name,
-      matchedRoles,
-      query: trimmed,
-      jobsForRole,
-      placedInRole,
-      marketingInRole,
-      companiesHiring: groupCount(jobsForRole, (j) => j.Company),
-      visaMixMarketing: groupCount(marketingInRole, (c) => c.VisaStatus),
-    };
+    const result = buildRoleResult(category.name, trimmed, (str) => category.regex.test(str), data);
+    if (result) return result;
   }
 
-  const matchedRoles = matchValues(trimmed, allRoles);
-  const matchedCompanies = !matchedRoles.length ? matchValues(trimmed, allCompanies) : [];
+  // Generic role match: works directly against Jobs/Candidates text, so it
+  // scales to any term ("analyst", "engineer", "manager", "recruiter", ...)
+  // without needing a hardcoded category, and never undercounts relative to
+  // what the table displays.
+  const roleResult = buildRoleResult(null, trimmed, (str) => isRelevant(str, trimmed), data);
+  if (roleResult) return roleResult;
 
-  if (matchedRoles.length) {
-    const jobsForRole = data.Jobs.filter((j) => matchedRoles.includes(j.Title));
-    const placedInRole = data.Candidates.filter(
-      (c) => c.Status === "Placed" && matchedRoles.includes(c.PlacedJobTitle)
-    );
-    const marketingInRole = data.Candidates.filter(
-      (c) => matchedRoles.includes(c.TargetRole) && (c.Status === "Active" || c.Status === "In Marketing")
-    );
-
-    return {
-      type: "role",
-      // Show the exact role name when there's one clean match; otherwise
-      // show what the person typed, since we're covering several roles.
-      label: matchedRoles.length === 1 ? matchedRoles[0] : trimmed,
-      matchedRoles,
-      query: trimmed,
-      jobsForRole,
-      placedInRole,
-      marketingInRole,
-      companiesHiring: groupCount(jobsForRole, (j) => j.Company),
-      visaMixMarketing: groupCount(marketingInRole, (c) => c.VisaStatus),
-    };
-  }
+  // Company match -- only reached when nothing above found a single related
+  // job title or target role.
+  const allCompanies = [...new Set(data.Jobs.map((j) => j.Company).filter(Boolean))];
+  const matchedCompanies = allCompanies.filter((c) => isRelevant(c, trimmed));
 
   if (matchedCompanies.length) {
     const jobsAtCompany = data.Jobs.filter((j) => matchedCompanies.includes(j.Company));
@@ -221,8 +207,6 @@ export function runSpecialSearch(query, data) {
 
   // Fallback: general fuzzy match across candidates / jobs / recruiters by
   // name/title/skill/location/role -- this only runs if nothing above matched.
-  // Cap raised from 25 to 100 so "show all relatable data" actually surfaces
-  // everything reasonably close instead of clipping early.
   const q = trimmed.toLowerCase();
   const candidateMatches = data.Candidates.filter(
     (c) =>
@@ -260,6 +244,7 @@ export const SUGGESTED_QUERIES = [
   "Green Card",
   "Finance",
   "Marketing",
+  "Analyst",
   "Data Analyst",
   "DevOps Engineer",
   "Beacon Hill",
