@@ -9,10 +9,6 @@ import {
   Languages as LanguagesIcon, Calendar, Building2,
   RefreshCw, FileWarning, UploadCloud, Gauge, ListChecks,
 } from "lucide-react";
-import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  PieChart, Pie, Cell, Legend,
-} from "recharts";
 import PageShell from "../components/layout/PageShell";
 import { Card, CardBody, CardHeader } from "../components/ui/Card";
 import { Heading, Text } from "../components/ui/Typography";
@@ -35,7 +31,6 @@ const BLUE = "#3b82f6";
 const PINK = "#ec4899";
 const AMBER = "#f59e0b";
 const GREEN = "#10b981";
-const PALETTE = [BLUE, PINK, AMBER, GREEN, "#60a5fa", "#f9a8d4"];
 
 const SCAN_STEPS = [
   { icon: Upload, label: "Uploading resume" },
@@ -380,180 +375,119 @@ function ResumeProfileView({ profile, score, eligible, showScore = false }) {
   );
 }
 
-// Scan Modal — glass styling with a layered scanning beam, ambient glow,
-// and a combined ring + bar progress indicator.
+/* ---------- Scan Modal ----------
+ * Rebuilt for two goals:
+ *  1. Performance — the old version drove the scanning beam with a
+ *     setInterval() calling setState every 30ms, which re-rendered the
+ *     entire modal (image, SVG ring, 6-item step list, glow layers) ~33
+ *     times a second. That's what caused the lag. The beam is now a pure
+ *     CSS @keyframes animation, so the browser compositor handles it and
+ *     React never re-renders because of it.
+ *  2. Clarity — cut the modal down to one signature moment (the scanning
+ *     document) instead of five competing animated layers. Only the
+ *     current step is shown, with a slim progress rail beneath it, so it
+ *     reads as calm and deliberate rather than busy.
+ */
 function ScanModal({ isOpen, fileName, previewUrl, scanStep, scanProgress }) {
-  const [animationPosition, setAnimationPosition] = useState(0);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setAnimationPosition(0);
-      return;
-    }
-    const interval = setInterval(() => {
-      setAnimationPosition((prev) => {
-        const newPos = prev + 0.6;
-        return newPos > 100 ? 0 : newPos;
-      });
-    }, 30);
-    return () => clearInterval(interval);
-  }, [isOpen]);
+  const step = SCAN_STEPS[Math.min(scanStep, SCAN_STEPS.length - 1)];
+  const StepIcon = step.icon;
 
   return (
-    <Modal open={isOpen} onClose={() => { }} title="" size="xl" closeOnOutsideClick={false} showCloseButton={false}>
-      <div className="p-0">
-        <div className="relative overflow-hidden bg-gradient-to-br from-white via-white to-blue-50/40 text-ink p-8 min-h-[600px]">
-          {/* Ambient background glows */}
-          <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-blue-400/10 blur-3xl animate-pulse" style={{ animationDuration: "4s" }} />
-          <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-pink-300/10 blur-3xl animate-pulse" style={{ animationDuration: "5s" }} />
-          <div className="absolute inset-0 opacity-[0.04]">
-            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #3b82f6 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
+    <Modal open={isOpen} onClose={() => { }} title="" size="lg" closeOnOutsideClick={false} showCloseButton={false}>
+      <style>{`
+        @keyframes scanBeam {
+          0%   { transform: translateY(-10%); }
+          100% { transform: translateY(110%); }
+        }
+        .scan-beam {
+          position: absolute;
+          left: 0; right: 0; top: 0;
+          height: 30%;
+          background: linear-gradient(to bottom, transparent, rgba(59,130,246,0.30) 45%, rgba(96,165,250,0.85) 50%, rgba(59,130,246,0.30) 55%, transparent);
+          animation: scanBeam 2.2s linear infinite;
+          will-change: transform;
+        }
+        @keyframes scanPulseRing {
+          0%   { opacity: 0.55; transform: scale(1); }
+          100% { opacity: 0; transform: scale(1.6); }
+        }
+        .scan-pulse-ring {
+          animation: scanPulseRing 2s ease-out infinite;
+          will-change: transform, opacity;
+        }
+      `}</style>
+
+      <div className="relative overflow-hidden bg-white p-7 sm:p-9">
+        {/* single, static ambient wash — no competing pulses */}
+        <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-blue-400/10 blur-3xl" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-8">
+          {/* Document preview with scanning beam — the one signature element */}
+          <div className="shrink-0">
+            <div className="relative h-52 w-40 rounded-xl overflow-hidden bg-gray-50 ring-1 ring-blue-100 shadow-[0_16px_40px_-12px_rgba(59,130,246,0.35)]">
+              {previewUrl ? (
+                <img src={previewUrl} alt="Resume preview" className="absolute inset-0 h-full w-full object-cover object-top" />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <FileText className="h-10 w-10 text-gray-300" />
+                </div>
+              )}
+              <div className="absolute inset-0 overflow-hidden">
+                <div className="scan-beam" />
+              </div>
+              <div className="absolute inset-0 ring-1 ring-inset ring-blue-500/10 rounded-xl" />
+            </div>
+            <p className="mt-2.5 text-center text-xs font-medium text-slate truncate max-w-[10rem]">{fileName}</p>
           </div>
 
-          <div className="relative z-10 flex flex-col lg:flex-row items-start gap-8">
-            {/* Enlarged Document Preview */}
-            <div className="flex-shrink-0 w-full lg:w-auto">
-              <div className="relative w-full lg:w-64 h-80 lg:h-96 rounded-2xl overflow-hidden bg-gray-50 border border-white shadow-[0_20px_60px_-15px_rgba(59,130,246,0.35)] ring-1 ring-blue-100">
-                {previewUrl ? (
-                  <img src={previewUrl} alt="Resume preview" className="absolute inset-0 h-full w-full object-cover object-top" />
-                ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                    <FileText className="h-16 w-16 text-gray-300" />
-                    <span className="text-sm text-gray-400 text-center px-4">{fileName || "Document"}</span>
-                  </div>
-                )}
-
-                {/* Scanning beam */}
-                <div className="absolute inset-0 overflow-hidden">
-                  <div
-                    className="absolute left-0 right-0 h-24 bg-gradient-to-b from-transparent via-blue-500/25 to-transparent"
-                    style={{ top: `${Math.max(-24, animationPosition - 12)}%`, transition: "top 0.03s linear" }}
-                  />
-                  <div
-                    className="absolute left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-blue-400 to-transparent"
-                    style={{
-                      top: `${animationPosition}%`,
-                      transition: "top 0.03s linear",
-                      boxShadow: "0 0 24px 6px rgba(59,130,246,0.55), 0 0 50px 18px rgba(59,130,246,0.2)",
-                    }}
-                  />
-                </div>
-
-                {/* Corner brackets */}
-                {["top-3 left-3 border-t-2 border-l-2", "top-3 right-3 border-t-2 border-r-2",
-                  "bottom-3 left-3 border-b-2 border-l-2", "bottom-3 right-3 border-b-2 border-r-2"].map((pos) => (
-                    <span key={pos} className={`absolute h-8 w-8 rounded-sm border-blue-500/60 ${pos}`} />
-                  ))}
-                {["top-3 left-3", "top-3 right-3", "bottom-3 left-3", "bottom-3 right-3"].map((pos) => (
-                  <span key={pos} className={`absolute h-2 w-2 bg-blue-500 rounded-full animate-ping ${pos}`} style={{ animationDuration: '1.6s' }} />
-                ))}
-
-                <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: "inset 0 0 60px rgba(0,0,0,0.06)" }} />
-              </div>
-
-              <div className="mt-3 text-center flex items-center justify-center gap-1.5">
-                <ScanLine className="h-3.5 w-3.5 text-blue-400" />
-                <Text variant="small" className="text-gray-500 truncate max-w-[220px]">
-                  {fileName}
-                </Text>
+          {/* Status */}
+          <div className="flex-1 w-full min-w-0 text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start gap-2.5">
+              <span className="relative flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shrink-0">
+                <span className="scan-pulse-ring absolute inset-0 rounded-xl bg-blue-400" />
+                <Sparkles className="h-4.5 w-4.5 text-white relative" />
+              </span>
+              <div>
+                <Text variant="h3" className="text-ink font-bold leading-tight">Scanning your resume</Text>
+                <Text variant="small" className="text-slate">AI-powered ATS analysis in progress</Text>
               </div>
             </div>
 
-            {/* Scanning Progress */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="relative flex items-center justify-center h-11 w-11 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30">
-                  <Sparkles className="h-5 w-5 text-white" />
-                  <span className="absolute inset-0 rounded-2xl border border-white/30 animate-ping" style={{ animationDuration: "2s" }} />
-                </div>
-                <div>
-                  <Text variant="h3" className="text-ink font-bold leading-tight">AI Scanning Resume</Text>
-                  <Text variant="small" className="text-gray-500">Analyzing with advanced ATS matching algorithms</Text>
-                </div>
-              </div>
-
-              {/* Progress ring + bar */}
-              <div className="flex items-center gap-4 my-6">
-                <div className="relative h-16 w-16 shrink-0">
-                  <svg className="h-16 w-16 -rotate-90">
-                    <circle cx="32" cy="32" r="26" fill="none" stroke="#e2e8f0" strokeWidth="6" />
-                    <circle
-                      cx="32" cy="32" r="26" fill="none"
-                      stroke={BLUE}
-                      strokeWidth="6"
-                      strokeLinecap="round"
-                      strokeDasharray={2 * Math.PI * 26}
-                      strokeDashoffset={2 * Math.PI * 26 * (1 - scanProgress / 100)}
-                      className="transition-all duration-500"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-ink stat-figure">
-                    {Math.round(scanProgress)}%
-                  </div>
-                </div>
-
-                <div className="flex-1 relative h-2.5 rounded-full bg-gray-200/70 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 rounded-full transition-all duration-500"
-                    style={{ width: `${scanProgress}%` }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-shimmer" />
-                  </div>
+            {/* Progress ring + rail */}
+            <div className="flex items-center gap-4 mt-6">
+              <div className="relative h-14 w-14 shrink-0">
+                <svg className="h-14 w-14 -rotate-90">
+                  <circle cx="28" cy="28" r="23" fill="none" stroke="#e2e8f0" strokeWidth="5" />
+                  <circle
+                    cx="28" cy="28" r="23" fill="none"
+                    stroke={BLUE}
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    strokeDasharray={2 * Math.PI * 23}
+                    strokeDashoffset={2 * Math.PI * 23 * (1 - scanProgress / 100)}
+                    className="transition-all duration-500"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-ink stat-figure">
+                  {Math.round(scanProgress)}%
                 </div>
               </div>
-
-              {/* Scan Steps */}
-              <div className="space-y-2.5 max-h-64 overflow-y-auto pr-2 scrollbar-thin">
-                {SCAN_STEPS.map((step, i) => {
-                  const isActive = i === scanStep;
-                  const isDone = i < scanStep;
-                  const Icon = step.icon;
-
-                  return (
-                    <div
-                      key={i}
-                      className={cx(
-                        "flex items-start gap-3 p-2 rounded-xl transition-all duration-300 border",
-                        isActive ? "bg-white border-blue-200 shadow-md shadow-blue-500/10 scale-[1.01]" : "border-transparent",
-                        isDone ? "opacity-100" : isActive ? "opacity-100" : "opacity-45"
-                      )}
-                    >
-                      <div className="flex-shrink-0 mt-0.5">
-                        {isDone ? (
-                          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                        ) : isActive ? (
-                          <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-                        ) : (
-                          <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <Icon className="h-4 w-4 text-gray-500" />
-                          <span className={cx("text-sm font-medium", isActive ? "text-ink" : "text-gray-600")}>{step.label}</span>
-                          {isActive && <span className="text-[10px] font-mono text-blue-500 animate-pulse">processing…</span>}
-                        </div>
-                      </div>
-                      {isActive && (
-                        <div className="flex-shrink-0 flex gap-1 items-end pb-1">
-                          <div className="h-2 w-1 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0s' }} />
-                          <div className="h-3 w-1 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0.15s' }} />
-                          <div className="h-1.5 w-1 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0.3s' }} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="flex-1 h-2 rounded-full bg-gray-200/70 overflow-hidden">
+                <div
+                  className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                  style={{ width: `${scanProgress}%` }}
+                />
               </div>
+            </div>
 
-              <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
-                <div className="flex items-center gap-1">
-                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>AI Engine Active</span>
-                </div>
-                <span className="w-px h-3 bg-gray-200" />
-                <span>{Math.round(scanProgress)}% complete</span>
-              </div>
+            {/* Current step only — no stacked list, so nothing to repaint at scale */}
+            <div className="mt-5 flex items-center justify-center sm:justify-start gap-2.5 rounded-xl bg-blue-50/70 ring-1 ring-blue-100 px-4 py-3">
+              <Loader2 className="h-4 w-4 text-blue-500 animate-spin shrink-0" />
+              <StepIcon className="h-4 w-4 text-blue-600 shrink-0" />
+              <span className="text-sm font-semibold text-ink truncate">{step.label}</span>
+              <span className="ml-auto text-[11px] font-mono text-blue-400 shrink-0">
+                {scanStep + 1}/{SCAN_STEPS.length}
+              </span>
             </div>
           </div>
         </div>

@@ -1,189 +1,243 @@
-const DOMAINS = {
-  "Software Engineering": [
-    "software", "developer", "engineer", "engineering", "programmer",
-    "full stack", "fullstack", "frontend", "front end", "backend", "back end",
-  ],
-  "Data & Analytics": [
-    "data", "analyst", "analytics", "data scientist", "machine learning",
-    "ml engineer", "ai engineer", "business intelligence", "statistician",
-    "data engineer", "data science",
-  ],
-  "Product & Design": [
-    "product manager", "product owner", "ux", "ui", "designer",
-    "user experience", "user interface", "product design", "graphic design",
-  ],
-  "Sales & Business Development": [
-    "sales", "account executive", "business development", "bdr", "sdr",
-    "account manager", "partnerships",
-  ],
-  "Marketing & Communications": [
-    "marketing", "content", "seo", "social media", "brand",
-    "communications", "growth", "copywriter", "public relations",
-  ],
-  "Finance & Accounting": [
-    "finance", "accountant", "accounting", "controller", "financial analyst",
-    "auditor", "treasury", "bookkeeper", "fp&a",
-  ],
-  "Human Resources": [
-    "human resources", "recruiter", "recruiting", "talent acquisition",
-    "people operations", "hr generalist", "hr business partner",
-  ],
-  "Operations & Supply Chain": [
-    "operations", "supply chain", "logistics", "procurement", "warehouse",
-    "project manager", "program manager", "operations manager",
-  ],
-  "Customer Support": [
-    "customer support", "customer service", "support specialist",
-    "help desk", "technical support", "customer success",
-  ],
-  "Legal & Compliance": [
-    "legal", "attorney", "paralegal", "compliance", "counsel",
-  ],
-  "Healthcare": [
-    "nurse", "physician", "medical", "clinical", "healthcare", "pharmacist",
-    "therapist", "patient care",
-  ],
-  "Education": [
-    "teacher", "instructor", "professor", "education", "curriculum", "tutor",
-  ],
-  "Executive & Management": [
-    "director", "vice president", "chief", "head of", "executive",
-    "general manager",
-  ],
-};
+// ---------------------------------------------------------------------------
+// Role matching — strict, domain-first.
+//
+// The problem this solves: generic role NOUNS ("Engineer", "Analyst",
+// "Developer", "Manager", "Specialist", "Consultant"...) appear in almost
+// every job family. If matching logic treats those words as domain
+// evidence, a "Data Analyst" candidate ends up matched to "Java Developer"
+// or "Salesforce Developer" jobs — they share nothing except the fact that
+// both titles happen to be a kind of "-ist/-er" role.
+//
+// Fix: every title is decomposed into
+//   1) a set of DOMAIN TAGS (data, finance, java, salesforce, network, …)
+//      detected from specific/meaningful phrases only, and
+//   2) a "core" and "qualifier" string used purely for exact/near-exact
+//      title comparison.
+// Generic role nouns and seniority words (Engineer, Analyst, Senior, Lead,
+// II, …) are stripped before any domain decision is made — they only help
+// decide whether two titles are literally the *same* title, never whether
+// they're the *same field*.
+//
+// Candidate roles are read ONLY from profile.headline and profile.jobRoles
+// — the same two fields rendered as the headline text and the role badges
+// on the profile card — so the matcher is judging exactly what the person
+// sees on screen.
+// ---------------------------------------------------------------------------
 
-// Job-title "disciplines" nested inside the broad Software Engineering /
-// Data domains that we do NOT want to auto-match a generic candidate to
-// just because the title contains a bare word like "engineer" or
-// "developer". A job carrying one of these tags is only shown to a
-// candidate whose own resume (roles/headline or skills) explicitly shows
-// the same specialty — e.g. a plain "Software Developer" candidate should
-// NOT see "Network Engineer", "Site Reliability Engineer", "AI/ML
-// Engineer", or "Salesforce Developer" unless their resume actually
-// mentions networking, SRE/devops, AI/ML, or Salesforce respectively.
-// There is intentionally NO fallback bypass for these — sharing a common
-// generic tech token (python, sql, aws, etc.) with the job posting is NOT
-// treated as sufficient evidence on its own; that bypass is what
-// previously let AI/ML Engineer, Network Engineer, etc. leak through for
-// candidates with no such background.
-const SPECIALTY_TAGS = {
-  network: ["network engineer", "network administrator", "network security", "network"],
-  systems: ["systems engineer", "system administrator", "sysadmin"],
-  cloud: ["cloud engineer", "cloud architect", "cloud"],
-  devops: ["devops", "site reliability", "sre", "platform engineer", "infrastructure engineer"],
-  qa: ["qa engineer", "sdet", "test engineer", "quality assurance", "quality analyst"],
-  mobile: ["ios developer", "android developer", "mobile developer", "flutter", "react native"],
-  ai_ml: ["ai/ml", "ai engineer", "ml engineer", "machine learning engineer", "artificial intelligence", "machine learning"],
-  data: ["data engineer", "data scientist", "data analyst", "business intelligence", "data science"],
-  salesforce: ["salesforce"],
-  sap: ["sap consultant", "sap developer", "sap"],
-  security: ["security engineer", "cybersecurity", "penetration tester", "information security", "security"],
-};
+// ---------- Text normalization ----------
 
-const TECH_TOKENS = [
-  "java", ".net", "c#", "python", "javascript", "typescript",
-  "react", "reactjs", "angular", "vue", "node", "node.js", "nodejs",
-  "spring boot", "spring", "django", "flask", "php", "ruby", "golang", "go",
-  "kotlin", "swift", "salesforce", "sap", "aws", "azure", "gcp",
-  "ios", "android", "flutter", "react native", "sql", "snowflake",
-];
+function normalizeText(text) {
+  let t = (text || "").toLowerCase();
+  t = t.replace(/c#/g, "csharp");
+  t = t.replace(/\.net\b/g, "dotnet");
+  t = t.replace(/node\.js/g, "nodejs");
+  t = t.replace(/react\.js/g, "reactjs");
+  t = t.replace(/vue\.js/g, "vuejs");
+  t = t.replace(/&/g, " and ");
+  t = t.replace(/[-_/.]+/g, " ");
+  t = t.replace(/\s+/g, " ").trim();
+  return t;
+}
 
 function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function wordBoundaryTest(text, term) {
-  if (!term) return false;
-  return new RegExp(`\\b${escapeRegExp(term)}\\b`, "i").test(text || "");
+function wordBoundaryTest(text, phrase) {
+  if (!phrase) return false;
+  return new RegExp(`\\b${escapeRegExp(phrase)}\\b`, "i").test(text || "");
 }
 
-/** Word-boundary regex per keyword, built once and cached. */
-const KEYWORD_PATTERNS = Object.entries(DOMAINS).flatMap(([domain, keywords]) =>
-  keywords.map((kw) => ({ domain, re: new RegExp(`\\b${escapeRegExp(kw)}\\b`, "i") }))
-);
-
-const SPECIALTY_PATTERNS = Object.entries(SPECIALTY_TAGS).flatMap(([tag, phrases]) =>
-  phrases.map((p) => ({ tag, re: new RegExp(`\\b${escapeRegExp(p)}\\b`, "i") }))
-);
-
-/**
- * Collapses whitespace around slashes before specialty matching, so
- * "AI/ML Engineer" and "AI / ML Engineer" both normalize to "ai/ml
- * engineer" and match the same "ai/ml" phrase pattern.
- */
-function normalizeSpecialtyText(text) {
-  return (text || "").toLowerCase().replace(/\s*\/\s*/g, "/");
-}
-
-/** Returns the set of domain names whose keywords appear in `text`. */
-function detectDomains(text) {
-  const found = new Set();
-  if (!text) return found;
-  for (const { domain, re } of KEYWORD_PATTERNS) {
-    if (re.test(text)) found.add(domain);
+function removeWords(text, wordSet) {
+  let t = text;
+  for (const w of wordSet) {
+    t = t.replace(new RegExp(`\\b${escapeRegExp(w)}\\b`, "gi"), " ");
   }
-  return found;
-}
-
-/** Returns the set of specialty tags (network, devops, ai_ml, salesforce, ...) present in `text`. */
-function detectSpecialtyTags(text) {
-  const found = new Set();
-  const normalized = normalizeSpecialtyText(text);
-  if (!normalized) return found;
-  for (const { tag, re } of SPECIALTY_PATTERNS) {
-    if (re.test(normalized)) found.add(tag);
-  }
-  return found;
-}
-
-function domainsFromList(items) {
-  const found = new Set();
-  for (const item of items || []) {
-    for (const d of detectDomains(item)) found.add(d);
-  }
-  return found;
-}
-
-/** First technology token (case-insensitive, word-boundary) found in `text`, or null. */
-function detectTechToken(text) {
-  const lower = (text || "").toLowerCase();
-  for (const tech of TECH_TOKENS) {
-    if (wordBoundaryTest(lower, tech)) return tech;
-  }
-  return null;
-}
-
-function stripTechFromRole(role, tech) {
-  if (!tech) return role;
-  return role.replace(new RegExp(`\\b${escapeRegExp(tech)}\\b`, "ig"), "").replace(/\s+/g, " ").trim();
+  return t.replace(/\s+/g, " ").trim();
 }
 
 function titleCase(word) {
   return word.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// ---------- Words that describe the TYPE of role, not the field ----------
+// Stripped before deciding whether two titles are "the same core title" or
+// share a meaningful qualifier. NEVER used as domain evidence themselves.
+const GENERIC_ROLE_WORDS = new Set([
+  "engineer", "engineering", "developer", "development", "programmer",
+  "analyst", "manager", "management", "specialist", "consultant", "consulting",
+  "administrator", "administration", "coordinator", "representative", "officer",
+  "technician", "associate", "assistant", "executive", "architect", "scientist",
+  "advisor", "strategist", "practitioner", "professional",
+]);
+
+// Seniority / level words — stripped only when comparing whether two titles
+// are literally the same role at different levels ("Senior Data Analyst"
+// vs "Data Analyst"). Never touches domain-tag detection.
+const SENIORITY_WORDS = new Set([
+  "senior", "sr", "junior", "jr", "lead", "principal", "staff", "chief",
+  "entry", "entrylevel", "mid", "midlevel", "ii", "iii", "iv",
+]);
+
+// ---------- Domain taxonomy ----------
+// Each tag lists the SPECIFIC phrases that identify it. Deliberately no
+// bare "engineer" / "analyst" / "developer" / "manager" anywhere in here —
+// those words are meaningless as field identifiers on their own.
+const TAXONOMY = {
+  // -- Software engineering: specific language/platform tags first --
+  java: ["java"],
+  dotnet: ["dotnet"],
+  csharp: ["csharp"],
+  python: ["python"],
+  javascript: ["javascript", "typescript", "nodejs"],
+  react: ["react", "reactjs"],
+  angular: ["angular"],
+  vue: ["vue", "vuejs"],
+  php: ["php"],
+  ruby: ["ruby", "ruby on rails"],
+  golang: ["golang", "go lang"],
+  kotlin: ["kotlin"],
+  swift: ["swift"],
+  ios: ["ios developer", "ios engineer", "ios"],
+  android: ["android developer", "android engineer", "android"],
+  flutter: ["flutter"],
+  react_native: ["react native"],
+  mainframe: ["mainframe", "cobol", "cics"],
+  salesforce: ["salesforce"],
+  sap: ["sap"],
+  // Generic software bucket — only for titles with NO specific language,
+  // e.g. plain "Software Engineer" / "Full Stack Developer".
+  software_generic: [
+    "software", "full stack", "fullstack", "front end", "frontend",
+    "back end", "backend", "web developer", "web development",
+    "application developer", "programmer",
+  ],
+
+  network: ["network engineer", "network administrator", "networking", "network"],
+  systems: ["systems administrator", "system administrator", "sysadmin", "systems engineer"],
+  cloud: ["cloud engineer", "cloud architect", "cloud"],
+  devops: ["devops", "site reliability", "sre", "platform engineer", "infrastructure engineer"],
+  qa: ["qa engineer", "quality assurance", "sdet", "test engineer", "quality analyst"],
+  security: ["cybersecurity", "cyber security", "information security", "penetration test", "infosec", "security engineer", "security analyst"],
+  database: ["database administrator", "dba", "database"],
+
+  ai_ml: ["machine learning", "artificial intelligence", "deep learning", "computer vision", "ai engineer", "ml engineer", "nlp engineer", "nlp"],
+  data: ["data analyst", "data scientist", "data engineer", "data science", "business intelligence", "big data", "data analytics", "data"],
+
+  product: ["product manager", "product owner", "product management", "product analyst", "product"],
+  design: ["ux designer", "ui designer", "user experience", "user interface", "product design", "graphic design", "visual design", "ux", "ui"],
+
+  sales: ["account executive", "business development", "account manager", "partnerships", "sales"],
+  marketing: ["digital marketing", "content marketing", "social media", "seo", "brand marketing", "public relations", "growth marketing", "copywriter", "marketing"],
+
+  finance: ["financial analyst", "accounting", "accountant", "controller", "treasury", "bookkeeping", "fp&a", "auditor", "audit", "financial", "finance"],
+
+  hr: ["human resources", "talent acquisition", "recruiter", "recruiting", "people operations", "hr generalist", "hr business partner", "hr"],
+
+  operations: ["supply chain", "logistics", "procurement", "warehouse operations", "operations"],
+  project_program: ["project manager", "program manager", "project management", "program management", "scrum master"],
+
+  customer_support: ["customer support", "customer service", "help desk", "technical support", "customer success", "it support"],
+
+  legal: ["attorney", "paralegal", "compliance", "counsel", "legal"],
+
+  healthcare: ["registered nurse", "physician", "clinical", "healthcare", "pharmacist", "physical therapist", "patient care", "dental", "veterinary", "nurse", "medical"],
+
+  education: ["teacher", "instructor", "professor", "curriculum", "tutor", "education"],
+
+  executive: ["chief executive", "vice president", "general manager", "president"],
+};
+
+// Software-family tags that count as "children" of software_generic — a
+// plain "Software Engineer" can reasonably match a "Java Developer" posting
+// and vice versa, at a moderate (not top-tier) score. Salesforce/SAP are
+// deliberately EXCLUDED from this — those are platform specialties, not
+// interchangeable with a generic software title.
+const SOFTWARE_LANG_TAGS = new Set([
+  "java", "dotnet", "csharp", "python", "javascript", "react", "angular",
+  "vue", "php", "ruby", "golang", "kotlin", "swift", "ios", "android",
+  "flutter", "react_native", "mainframe",
+]);
+
+const LANG_LABELS = {
+  java: "Java", dotnet: ".NET", csharp: "C#", python: "Python",
+  javascript: "JavaScript", react: "React", angular: "Angular", vue: "Vue",
+  php: "PHP", ruby: "Ruby", golang: "Go", kotlin: "Kotlin", swift: "Swift",
+  ios: "iOS", android: "Android", flutter: "Flutter", react_native: "React Native",
+  mainframe: "Mainframe",
+};
+
+const TAXONOMY_ENTRIES = Object.entries(TAXONOMY);
+
+/** Full set of domain tags present in `text` (phrase-based, word-boundary safe). */
+function getTags(text) {
+  const tags = new Set();
+  const normalized = normalizeText(text);
+  if (!normalized) return tags;
+  for (const [tag, phrases] of TAXONOMY_ENTRIES) {
+    for (const phrase of phrases) {
+      if (wordBoundaryTest(normalized, phrase)) {
+        tags.add(tag);
+        break;
+      }
+    }
+  }
+  return tags;
+}
+
+/** Normalized title with seniority/level words removed (generic role nouns kept). */
+function coreTitle(text) {
+  return removeWords(normalizeText(text), SENIORITY_WORDS);
+}
+
+/** Core title with generic role nouns ALSO removed — the "meat" of the title. */
+function qualifierCore(text) {
+  return removeWords(coreTitle(text), GENERIC_ROLE_WORDS);
+}
+
+/**
+ * Decides whether two tag sets represent the same field.
+ * - Direct tag overlap -> match, "specific" if the shared tag isn't the
+ *   generic software bucket.
+ * - software_generic on one side + any specific language tag on the other
+ *   -> match, but never "specific" (moderate confidence only).
+ */
+function tagsRelated(tagsA, tagsB) {
+  const shared = [...tagsA].filter((t) => tagsB.has(t));
+  if (shared.length > 0) {
+    const specific = shared.some((t) => t !== "software_generic");
+    return { match: true, specific };
+  }
+  const aGeneric = tagsA.has("software_generic");
+  const bGeneric = tagsB.has("software_generic");
+  const aLang = [...tagsA].some((t) => SOFTWARE_LANG_TAGS.has(t));
+  const bLang = [...tagsB].some((t) => SOFTWARE_LANG_TAGS.has(t));
+  if ((aGeneric && bLang) || (bGeneric && aLang)) {
+    return { match: true, specific: false };
+  }
+  return { match: false, specific: false };
+}
+
+// ---------- Public: role variant expansion (kept for compatibility) ----------
+
 export function expandRoleVariants(role) {
   if (!role) return [];
   const trimmed = role.trim();
   if (!trimmed) return [];
-
   const variants = new Set([trimmed]);
-  const tech = detectTechToken(trimmed);
-
-  if (tech) {
-    const base = stripTechFromRole(trimmed, tech); // e.g. "Full Stack Developer"
-    const techTitle = titleCase(tech);
-    if (base) variants.add(base);
-    variants.add(`${techTitle} Developer`);
-    variants.add(`${techTitle} Engineer`);
-    variants.add(`Backend ${techTitle} Developer`);
-    variants.add(`${techTitle} Full Stack Developer`);
-    variants.add(`${techTitle} Full Stack`);
-    variants.add(`Senior ${techTitle} Developer`);
+  const tags = getTags(trimmed);
+  const lang = [...tags].find((t) => SOFTWARE_LANG_TAGS.has(t));
+  if (lang) {
+    const label = LANG_LABELS[lang] || titleCase(lang);
+    variants.add(`${label} Developer`);
+    variants.add(`${label} Engineer`);
   }
-
-  return Array.from(variants).filter(Boolean);
+  return Array.from(variants);
 }
+
+// ---------- Public: extracting candidate roles ----------
+// Pulled ONLY from profile.headline and profile.jobRoles — the exact two
+// fields shown as the headline text and the role badges in the UI.
 
 export function extractRoleFromHeadline(headline) {
   if (!headline) return "";
@@ -204,91 +258,90 @@ export function deriveCandidateRoles(profile) {
 
   const roles = Array.from(rolesSet);
 
-  // domainSources drives which broad job *category* is considered a match
-  // (Software Engineering, Data & Analytics, etc). It intentionally uses
-  // ONLY the clean role phrases, not raw headline/summary text, to avoid
-  // stray words in a sentence pulling in unrelated domains.
-  const domainSources = roles;
-
-  // skillsText is extra evidence for the specialty gate only (does the
-  // resume's skills section actually mention Salesforce, AI/ML,
-  // networking, etc) — kept separate so a long skills list can't quietly
-  // widen the broad domain match on its own.
+  // skillsText is weak/supporting evidence only (tier 4 below) — it can
+  // never by itself unlock a domain the candidate's actual title/headline
+  // doesn't show.
   const skillsText = (profile.skills || []).join(" ");
 
-  return { roles, domainSources, skillsText };
+  return { roles, domainSources: roles, skillsText };
 }
 
+// ---------- Public: scoring ----------
+//
+// Tiers (highest confidence first):
+//   100  Exact title match, seniority-insensitive
+//         ("Senior Data Analyst" == "Data Analyst")
+//    92  Meaningful qualifier text matches/contains the other, with generic
+//         role nouns stripped from both sides
+//         ("Data Analyst" -> "data" is contained in "Business Data Analyst" -> "business data")
+//    85  Shared SPECIFIC domain tag between candidate title and job title
+//         (both "data", both "salesforce", both "java", ...)
+//    60  Shared but only the generic software bucket (two different plain
+//         "Software/Full Stack/Backend..." titles with no language named),
+//         OR one side is generic-software and the other names a specific
+//         language (parent/child relationship)
+//    45  Weak fallback: a SPECIFIC tag from the candidate's title appears in
+//         the job's Skills/Requirements text, or a specific tag from the
+//         candidate's own Skills list appears in the job title. Generic
+//         "software" alone never qualifies here.
+//     0  No shared field -> excluded entirely. There is intentionally NO
+//         bypass based on shared generic words (Engineer/Analyst/Developer/
+//         Manager) anywhere in this scoring path.
+
 export function scoreJobRelevance(job, roles, domainSources = roles, skillsText = "") {
-  const title = (job.Title || "").toLowerCase();
-  if (!title) return 0;
+  const jobTitleRaw = job.Title || "";
+  if (!jobTitleRaw) return 0;
 
-  const jobReqText = `${job.Skills || ""} ${job.Requirements || ""}`.toLowerCase();
-
-  // Hit-and-trial: try every phrasing variant of every configured role.
-  const allVariants = (roles || []).flatMap((r) => expandRoleVariants(r));
-
-  let titleScore = 0;
-  for (const variant of allVariants) {
-    const role = variant.toLowerCase();
-    if (!role) continue;
-    if (title === role) titleScore = Math.max(titleScore, 100);
-    else if (title.includes(role) || role.includes(title)) titleScore = Math.max(titleScore, 80);
-  }
-
-  const techTerms = new Set(
-    (domainSources || []).map((s) => detectTechToken(s)).filter(Boolean)
+  const roleList = Array.from(
+    new Set([...(roles || []), ...(domainSources || [])].filter(Boolean))
   );
-  let hasTechOverlap = false;
-  for (const term of techTerms) {
-    if (wordBoundaryTest(jobReqText, term)) {
-      hasTechOverlap = true;
-      break;
+  if (roleList.length === 0) return 0;
+
+  const jobCore = coreTitle(jobTitleRaw);
+  const jobQualifier = qualifierCore(jobTitleRaw);
+  const jobTags = getTags(jobTitleRaw);
+  const jobWeakTags = getTags(`${job.Skills || ""} ${job.Requirements || ""}`);
+  const candidateSkillTags = getTags(skillsText);
+
+  let best = 0;
+
+  for (const role of roleList) {
+    const roleCore = coreTitle(role);
+    if (!roleCore) continue;
+    if (roleCore === jobCore) {
+      best = Math.max(best, 100);
+      continue;
+    }
+
+    const roleQualifier = qualifierCore(role);
+    if (
+      roleQualifier &&
+      jobQualifier &&
+      (roleQualifier === jobQualifier ||
+        jobQualifier.includes(roleQualifier) ||
+        roleQualifier.includes(jobQualifier))
+    ) {
+      best = Math.max(best, 92);
+      continue;
+    }
+
+    const roleTags = getTags(role);
+    const rel = tagsRelated(roleTags, jobTags);
+    if (rel.match) {
+      best = Math.max(best, rel.specific ? 85 : 60);
+      continue;
+    }
+
+    const weakShared = new Set([
+      ...[...roleTags].filter((t) => t !== "software_generic" && jobWeakTags.has(t)),
+      ...[...candidateSkillTags].filter((t) => t !== "software_generic" && jobTags.has(t)),
+    ]);
+    if (weakShared.size > 0) {
+      best = Math.max(best, 45);
     }
   }
 
-  // Direct title match (role literally appears on the resume) always wins
-  // — the candidate explicitly claimed that title, so the specialty guard
-  // below doesn't apply here.
-  if (titleScore >= 100) return 100;
-  if (titleScore >= 80) return hasTechOverlap ? 95 : 80;
-
-  // --- Specialty guard (both directions) ---
-  // A job whose title belongs to a specific discipline (network, cloud,
-  // devops/SRE, QA, mobile, AI/ML, data, Salesforce, SAP, security) is
-  // ONLY eligible if the candidate's own roles/headline or skills show
-  // that same specialty. No generic-tech-token bypass here on purpose —
-  // sharing a common token like "python" or "sql" with the job posting is
-  // NOT enough evidence the candidate actually works in that discipline.
-  const jobSpecialty = detectSpecialtyTags(title);
-  const candidateSpecialtyText = `${(domainSources || []).join(" ")} ${skillsText || ""}`;
-  const candidateSpecialty = detectSpecialtyTags(candidateSpecialtyText);
-
-  if (jobSpecialty.size > 0) {
-    const specialtyOverlap = [...jobSpecialty].some((t) => candidateSpecialty.has(t));
-    if (!specialtyOverlap) return 0;
-  } else if (candidateSpecialty.size > 0) {
-    // The job itself is generic (no specific discipline detected in its
-    // title, e.g. "Java Developer", "React Developer"), but the
-    // candidate IS a specialist (e.g. their title is "Network Security
-    // Engineer", which also contains the bare word "Engineer" and would
-    // otherwise fall into the broad Software Engineering domain bucket
-    // below). A specialist isn't a generalist — don't show them plain
-    // dev/data roles just because their title happens to end in
-    // "Engineer" too, unless the job's own requirements show real
-    // overlapping tech with their resume.
-    if (!hasTechOverlap) return 0;
-  }
-
-  // --- Domain-fallback path (generic dev/data roles only) ---
-  const jobDomains = detectDomains(title);
-  if (jobDomains.size === 0) return 0;
-
-  const candidateDomains = domainsFromList(domainSources);
-  for (const d of jobDomains) {
-    if (candidateDomains.has(d)) return hasTechOverlap ? 55 : 40;
-  }
-  return 0;
+  return best;
 }
 
 export function jobMatchesAnyRole(job, roles, domainSources = roles, skillsText = "") {
@@ -309,12 +362,8 @@ export function findMatchingActiveJobs(jobs, roles, limit = Infinity, domainSour
     .map(({ job }) => job);
 }
 
-/**
- * Extracts a representative numeric value from a free-text salary range
- * string (e.g. "$50,000 - $70,000", "$50K-$70K", "60000"). Returns the
- * average of all numbers found, or null if nothing parseable is found
- * (e.g. "Competitive", empty string).
- */
+// ---------- Salary parsing & eligibility (unchanged) ----------
+
 export function parseSalaryValue(salaryRange) {
   if (!salaryRange || typeof salaryRange !== "string") return null;
   const matches = salaryRange.match(/[\d,]+(\.\d+)?\s*(k|K)?/g);
@@ -333,19 +382,6 @@ export function parseSalaryValue(salaryRange) {
   return numbers.reduce((a, b) => a + b, 0) / numbers.length;
 }
 
-/**
- * Assigns per-row eligibility for the matched jobs table.
- *
- * - If the candidate is overall eligible, every matched job is eligible.
- * - If the candidate is NOT overall eligible: exactly ONE row is marked
- *   eligible — the single lowest-salary match, tagged
- *   eligibilityReason: "low-salary" — and that row is pinned to the very
- *   front of the returned array so it's guaranteed visible on the FIRST
- *   PAGE of the results table, regardless of page size or where it
- *   originally ranked. Every other row is "not-eligible". Jobs with an
- *   unparseable salary are treated as high (never chosen) since we can't
- *   verify they're actually low.
- */
 export function assignCompanyEligibility(matchedJobs, overallEligible) {
   if (overallEligible) {
     return matchedJobs.map((j) => ({ ...j, rowEligible: true, eligibilityReason: "qualified" }));
@@ -370,7 +406,6 @@ export function assignCompanyEligibility(matchedJobs, overallEligible) {
     eligibilityReason: j.JobID === eligibleId ? "low-salary" : "not-eligible",
   }));
 
-  // Pin the single eligible row to the front so it always lands on page 1.
   const eligibleRow = tagged.find((j) => j.rowEligible);
   const rest = tagged.filter((j) => !j.rowEligible);
   return eligibleRow ? [eligibleRow, ...rest] : tagged;
