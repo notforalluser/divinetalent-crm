@@ -1,22 +1,3 @@
-// ============================================================================
-// Special Search: a single query box that understands three concept types
-// found across the workbook -- visa/sponsorship terms, job roles, and
-// companies -- and returns grouped, cross-referenced results instead of a
-// flat list. E.g. searching "H-1B" surfaces candidates on that visa status,
-// companies whose job postings offer that sponsorship, AND companies where
-// candidates have actually been placed under that visa -- three different
-// sheets, one query.
-//
-// Matching strategy for roles/companies is strict-first, relevant-fallback:
-//   1. exact match
-//   2. substring match (either direction)
-//   3. word-overlap match -- only used if 1 & 2 find nothing, and returns
-//      every role/company that shares a significant word with the query
-//      (so "software developer" surfaces "Full Stack Developer",
-//      "Java Developer", "React Developer", etc. instead of nothing).
-// ============================================================================
-
-// Canonical visa terms and every alias a person might type for them.
 const VISA_ALIASES = [
   { canonical: "H1B", labels: ["H1B", "H-1B"], match: ["h1b", "h-1b"] },
   { canonical: "H4-EAD", labels: ["H4-EAD", "H-4 EAD", "H4"], match: ["h4-ead", "h4 ead", "h-4", "h4"] },
@@ -40,6 +21,29 @@ const VISA_TO_JOB_SPONSORSHIP = {
   "L2-EAD": ["Any / Open"],
 };
 
+// Broad job-family categories. A query that mentions the category name (or any
+// of its synonyms) pulls in every job / placement / marketing candidate whose
+// title or target role is a plausible member of that family -- even if the
+// exact wording differs across the Candidates and Jobs sheets (e.g.
+// "Financial Analyst" vs "Finance Manager" vs "Accountant").
+const ROLE_CATEGORIES = [
+  {
+    name: "Finance",
+    regex: /finance|financial|accounting|accountant|payroll|investment|treasury/i,
+  },
+  {
+    name: "Marketing",
+    regex: /marketing|seo\b|social media|content strategy|digital marketing|brand/i,
+  },
+];
+
+function detectCategory(query) {
+  const q = query.toLowerCase();
+  return (
+    ROLE_CATEGORIES.find((cat) => q.includes(cat.name.toLowerCase()) || cat.regex.test(q)) || null
+  );
+}
+
 function detectVisa(query) {
   const q = query.toLowerCase();
   return VISA_ALIASES.find((v) => v.match.some((m) => q.includes(m))) || null;
@@ -57,14 +61,6 @@ function tokens(str) {
     .filter((t) => t.length > 2);
 }
 
-/**
- * Finds every value in `values` that plausibly matches `query`.
- * Strict-first: exact match, then substring match (either direction).
- * Only if BOTH of those come up empty does it fall back to word-overlap
- * matching, returning every value tied for the highest overlap score.
- * This guarantees a query like "software developer" -- which matches no
- * exact role -- still surfaces every "...Developer" role instead of nothing.
- */
 function matchValues(query, values) {
   const q = normalize(query);
   if (!q) return [];
@@ -119,8 +115,7 @@ export function runSpecialSearch(query, data) {
   const allCompanies = [...new Set(data.Jobs.map((j) => j.Company).filter(Boolean))];
 
   const visa = detectVisa(trimmed);
-  const matchedRoles = !visa ? matchValues(trimmed, allRoles) : [];
-  const matchedCompanies = !visa && !matchedRoles.length ? matchValues(trimmed, allCompanies) : [];
+  const category = !visa ? detectCategory(trimmed) : null;
 
   if (visa) {
     const sponsorshipValues = VISA_TO_JOB_SPONSORSHIP[visa.canonical] || [];
@@ -140,6 +135,45 @@ export function runSpecialSearch(query, data) {
       visaBreakdownOfCandidates: groupCount(candidatesOnVisa, (c) => c.Status),
     };
   }
+
+  // Category match ("Finance", "Marketing", ...): match each sheet
+  // independently against the category's regex instead of requiring the
+  // exact same title string to appear in both Candidates and Jobs. This is
+  // what makes "Finance" surface every finance-flavored job/placement, not
+  // just the ones whose title literally contains the substring "finance".
+  if (category) {
+    const jobsForRole = data.Jobs.filter((j) => category.regex.test(j.Title || ""));
+    const placedInRole = data.Candidates.filter(
+      (c) => c.Status === "Placed" && category.regex.test(c.PlacedJobTitle || "")
+    );
+    const marketingInRole = data.Candidates.filter(
+      (c) =>
+        category.regex.test(c.TargetRole || "") &&
+        (c.Status === "Active" || c.Status === "In Marketing")
+    );
+    const matchedRoles = [
+      ...new Set([
+        ...jobsForRole.map((j) => j.Title),
+        ...placedInRole.map((c) => c.PlacedJobTitle),
+        ...marketingInRole.map((c) => c.TargetRole),
+      ]),
+    ].filter(Boolean);
+
+    return {
+      type: "role",
+      label: category.name,
+      matchedRoles,
+      query: trimmed,
+      jobsForRole,
+      placedInRole,
+      marketingInRole,
+      companiesHiring: groupCount(jobsForRole, (j) => j.Company),
+      visaMixMarketing: groupCount(marketingInRole, (c) => c.VisaStatus),
+    };
+  }
+
+  const matchedRoles = matchValues(trimmed, allRoles);
+  const matchedCompanies = !matchedRoles.length ? matchValues(trimmed, allCompanies) : [];
 
   if (matchedRoles.length) {
     const jobsForRole = data.Jobs.filter((j) => matchedRoles.includes(j.Title));
@@ -187,6 +221,8 @@ export function runSpecialSearch(query, data) {
 
   // Fallback: general fuzzy match across candidates / jobs / recruiters by
   // name/title/skill/location/role -- this only runs if nothing above matched.
+  // Cap raised from 25 to 100 so "show all relatable data" actually surfaces
+  // everything reasonably close instead of clipping early.
   const q = trimmed.toLowerCase();
   const candidateMatches = data.Candidates.filter(
     (c) =>
@@ -196,17 +232,17 @@ export function runSpecialSearch(query, data) {
       (c.CurrentLocation || "").toLowerCase().includes(q) ||
       (c.TargetRole || "").toLowerCase().includes(q) ||
       (c.PlacedJobTitle || "").toLowerCase().includes(q)
-  ).slice(0, 25);
+  ).slice(0, 100);
   const jobMatches = data.Jobs.filter(
     (j) =>
       j.Title.toLowerCase().includes(q) ||
       j.Company.toLowerCase().includes(q) ||
       (j.Skills || "").toLowerCase().includes(q) ||
       `${j.City} ${j.State}`.toLowerCase().includes(q)
-  ).slice(0, 25);
+  ).slice(0, 100);
   const recruiterMatches = data.Recruiters.filter(
     (r) => r.Name.toLowerCase().includes(q) || (r.Title || "").toLowerCase().includes(q)
-  ).slice(0, 25);
+  ).slice(0, 100);
 
   return {
     type: "general",
@@ -222,6 +258,8 @@ export const SUGGESTED_QUERIES = [
   "H-1B sponsorship",
   "OPT",
   "Green Card",
+  "Finance",
+  "Marketing",
   "Data Analyst",
   "DevOps Engineer",
   "Beacon Hill",
